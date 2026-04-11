@@ -1,41 +1,62 @@
-<div class="card">
-    <p-toolbar styleClass="mb-6">
-        <ng-template #start>
-            <h4 class="m-0 font-semibold text-xl">Tenants</h4>
-        </ng-template>
-        <ng-template #end>
-            <p-button label="New tenant" icon="pi pi-plus" severity="secondary" (onClick)="openNew()" />
-        </ng-template>
-    </p-toolbar>
+<div class="flex flex-col gap-4">
+    <div class="card border-round-2xl overflow-hidden p-0 border-1 surface-border surface-50 dark:surface-900 shadow-1">
+        <div class="relative px-4 py-6 md:px-6 md:py-8">
+            <div class="flex justify-center md:justify-end md:absolute md:right-5 md:top-5 z-1 mb-4 md:mb-0">
+                <p-button
+                    label="New tenant"
+                    icon="pi pi-plus"
+                    severity="secondary"
+                    [outlined]="true"
+                    [rounded]="true"
+                    styleClass="font-semibold"
+                    (onClick)="openNew()"
+                />
+            </div>
+            <div class="flex flex-col items-center text-center gap-3 max-w-48rem mx-auto px-2 md:px-14 pt-1 md:pt-0">
+                <span
+                    class="inline-flex items-center justify-center px-3 py-1 border-round-md text-xs font-bold uppercase tracking-wide text-primary surface-ground border-1 border-primary"
+                >
+                    Directory
+                </span>
+                <h1 class="m-0 font-bold text-3xl md:text-4xl text-color leading-tight">Tenants</h1>
+                <p class="m-0 text-muted-color text-base md:text-lg max-w-36rem line-height-3">
+                    Manage organisations, then open a tenant to configure departments, people, invites, and how assessments are distributed.
+                </p>
+            </div>
+        </div>
+    </div>
 
-    <p-table [value]="store.tenants()" [rowHover]="true" dataKey="id" [tableStyle]="{ 'min-width': '50rem' }">
-        <ng-template #header>
-            <tr>
-                <th style="min-width: 14rem">Name</th>
-                <th style="min-width: 18rem">Description</th>
-                <th style="width: 8rem">Departments</th>
-                <th style="width: 12rem"></th>
-            </tr>
-        </ng-template>
-        <ng-template #body let-tenant>
-            <tr (click)="openTenantDetail(tenant)" class="cursor-pointer">
-                <td class="font-semibold">{{ tenant.name }}</td>
-                <td class="text-muted-color text-sm">{{ tenant.description || '—' }}</td>
-                <td>
-                    <p-tag [value]="departmentCount(tenant).toString()" severity="info" />
-                </td>
-                <td (click)="$event.stopPropagation()">
-                    <p-button icon="pi pi-pencil" class="mr-2" [rounded]="true" [outlined]="true" (onClick)="openEdit(tenant)" />
-                    <p-button icon="pi pi-trash" severity="danger" [rounded]="true" [outlined]="true" (onClick)="confirmDeleteTenant(tenant)" />
-                </td>
-            </tr>
-        </ng-template>
-        <ng-template #emptymessage>
-            <tr>
-                <td colspan="4" class="text-center text-muted-color py-6">No tenants yet. Create one to get started.</td>
-            </tr>
-        </ng-template>
-    </p-table>
+    <div class="card">
+        <div class="font-semibold text-lg mb-4">All organisations</div>
+        <p-table [value]="store.tenants()" [rowHover]="true" dataKey="id" [tableStyle]="{ 'min-width': '50rem' }">
+            <ng-template #header>
+                <tr>
+                    <th style="min-width: 14rem">Name</th>
+                    <th style="min-width: 18rem">Description</th>
+                    <th style="width: 8rem">Departments</th>
+                    <th style="width: 12rem"></th>
+                </tr>
+            </ng-template>
+            <ng-template #body let-tenant>
+                <tr (click)="openTenantDetail(tenant)" class="cursor-pointer">
+                    <td class="font-semibold">{{ tenant.name }}</td>
+                    <td class="text-muted-color text-sm">{{ tenant.description || '—' }}</td>
+                    <td>
+                        <p-tag [value]="departmentCount(tenant).toString()" severity="info" />
+                    </td>
+                    <td (click)="$event.stopPropagation()">
+                        <p-button icon="pi pi-pencil" class="mr-2" [rounded]="true" [outlined]="true" (onClick)="openEdit(tenant)" />
+                        <p-button icon="pi pi-trash" severity="danger" [rounded]="true" [outlined]="true" (onClick)="confirmDeleteTenant(tenant)" />
+                    </td>
+                </tr>
+            </ng-template>
+            <ng-template #emptymessage>
+                <tr>
+                    <td colspan="4" class="text-center text-muted-color py-6">No tenants yet. Create one to get started.</td>
+                </tr>
+            </ng-template>
+        </p-table>
+    </div>
 </div>
 
 <p-dialog

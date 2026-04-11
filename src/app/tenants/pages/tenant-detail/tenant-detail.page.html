@@ -1,16 +1,31 @@
 @if (tenant(); as t) {
     <div class="flex flex-col gap-4">
-        <p-toolbar styleClass="border-none bg-transparent p-0 gap-3 flex-wrap">
-            <ng-template #start>
-                <div class="flex flex-wrap items-center gap-3">
-                    <p-button icon="pi pi-arrow-left" severity="secondary" [text]="true" label="Tenants" (onClick)="goBack()" />
-                    <div class="flex flex-col gap-1">
-                        <h3 class="m-0 font-semibold text-2xl">{{ t.name }}</h3>
-                        <span class="text-muted-color text-sm">{{ t.description || 'No description' }}</span>
-                    </div>
+        <div class="card border-round-2xl overflow-hidden p-0 border-1 surface-border surface-50 dark:surface-900 shadow-1">
+            <div class="relative px-4 py-6 md:px-6 md:py-8">
+                <div class="flex justify-center md:justify-start md:absolute md:left-5 md:top-5 z-1 mb-4 md:mb-0">
+                    <p-button
+                        label="Tenants"
+                        icon="pi pi-arrow-left"
+                        severity="secondary"
+                        [outlined]="true"
+                        [rounded]="true"
+                        styleClass="font-semibold"
+                        (onClick)="goBack()"
+                    />
                 </div>
-            </ng-template>
-        </p-toolbar>
+                <div class="flex flex-col items-center text-center gap-3 max-w-48rem mx-auto px-2 md:px-14 pt-1 md:pt-0">
+                    <span
+                        class="inline-flex items-center justify-center px-3 py-1 border-round-md text-xs font-bold uppercase tracking-wide text-primary surface-ground border-1 border-primary"
+                    >
+                        Tenant workspace
+                    </span>
+                    <h2 class="m-0 font-bold text-3xl md:text-4xl text-color leading-tight">{{ t.name }}</h2>
+                    <p class="m-0 text-muted-color text-base md:text-lg max-w-36rem line-height-3">
+                        {{ t.description || 'Add a short description from the tenant list to help admins recognize this organisation.' }}
+                    </p>
+                </div>
+            </div>
+        </div>
 
         <p-tabs [value]="mainTab" (valueChange)="onMainTabChange($event)">
             <p-tablist>

@@ -11,7 +11,6 @@ import { RippleModule } from 'primeng/ripple';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
-import { ToolbarModule } from 'primeng/toolbar';
 import { Tenant } from '@/app/tenants/tenants.models';
 import { TenantsStore } from '@/app/tenants/tenants.store';
 
@@ -22,7 +21,6 @@ import { TenantsStore } from '@/app/tenants/tenants.store';
     CommonModule,
     RouterModule,
     FormsModule,
-    ToolbarModule,
     ButtonModule,
     RippleModule,
     TableModule,

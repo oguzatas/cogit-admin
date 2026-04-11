@@ -16,7 +16,6 @@ import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
 import { TabsModule } from 'primeng/tabs';
 import { TagModule } from 'primeng/tag';
-import { ToolbarModule } from 'primeng/toolbar';
 import {
   Department,
   InviteLink,
@@ -33,7 +32,6 @@ import { TenantsStore } from '@/app/tenants/tenants.store';
     CommonModule,
     RouterModule,
     FormsModule,
-    ToolbarModule,
     ButtonModule,
     RippleModule,
     TabsModule,
