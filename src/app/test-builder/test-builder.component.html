@@ -1,0 +1,288 @@
+<p-fluid class="flex flex-col gap-4">
+    <div class="card flex flex-col gap-4">
+        <p-toolbar styleClass="border-none bg-transparent p-0">
+            <ng-template #start>
+                <div class="flex flex-col md:flex-row gap-4 items-stretch md:items-end w-full">
+                    <div class="flex flex-col gap-2 grow basis-0 min-w-0 md:max-w-30rem">
+                        <label for="testTitle" class="font-semibold text-lg">Test title</label>
+                        <input
+                            pInputText
+                            fluid
+                            id="testTitle"
+                            type="text"
+                            placeholder="Name this assessment"
+                            [value]="store.testTitle()"
+                            (input)="store.updateTestTitle($any($event.target).value)"
+                        />
+                    </div>
+                    <span class="text-muted-color text-sm md:ml-auto">{{ store.totalQuestions() }} question(s)</span>
+                </div>
+            </ng-template>
+            <ng-template #end>
+                <p-button
+                    label="Add question"
+                    icon="pi pi-plus"
+                    severity="secondary"
+                    styleClass="whitespace-nowrap"
+                    (onClick)="addSingleChoiceQuestion()"
+                />
+            </ng-template>
+        </p-toolbar>
+    </div>
+
+    <div class="card p-0 overflow-hidden">
+        <p-splitter [style]="{ minHeight: 'min(42rem, calc(100vh - 16rem))' }" [panelSizes]="[32, 68]" [minSizes]="[20, 40]">
+            <ng-template #panel>
+                <div class="flex flex-col gap-3 p-4 h-full overflow-y-auto surface-ground" style="min-height: inherit">
+                    <div class="font-semibold text-xl">Questions</div>
+                    @if (store.questions().length === 0) {
+                        <p class="m-0 text-muted-color text-sm">No questions yet. Use “Add question” to create one.</p>
+                    }
+                    <div
+                        cdkDropList
+                        class="flex flex-col gap-3"
+                        [cdkDropListData]="store.questions()"
+                        (cdkDropListDropped)="onQuestionDropped($event)"
+                    >
+                        @for (q of store.questions(); track q.id) {
+                            <div class="flex gap-2 items-stretch" cdkDrag>
+                                <button
+                                    type="button"
+                                    cdkDragHandle
+                                    class="flex items-center justify-center surface-border border-1 border-round px-2 cursor-move text-muted-color hover:text-color"
+                                    aria-label="Drag to reorder"
+                                >
+                                    <i class="pi pi-bars"></i>
+                                </button>
+                                <div
+                                    class="flex-1 min-w-0"
+                                    role="button"
+                                    tabindex="0"
+                                    (click)="store.selectQuestion(q.id)"
+                                    (keydown.enter)="store.selectQuestion(q.id)"
+                                >
+                                    <p-card [styleClass]="listCardStyleClass(q)">
+                                        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                            <span class="font-semibold text-sm">Order {{ q.orderIndex }}</span>
+                                            @if (questionHasInvalidRule(q)) {
+                                                <i
+                                                    class="pi pi-exclamation-triangle text-red-500"
+                                                    title="One or more branching rules have an invalid target order"
+                                                ></i>
+                                            }
+                                        </div>
+                                        <p class="m-0 text-muted-color text-sm line-height-3">
+                                            {{ snippet(q.text, 72) }}
+                                        </p>
+                                    </p-card>
+                                </div>
+                                <div class="flex items-start pt-1">
+                                    <p-button
+                                        icon="pi pi-trash"
+                                        severity="danger"
+                                        [rounded]="true"
+                                        [outlined]="true"
+                                        [text]="true"
+                                        aria-label="Delete question"
+                                        (onClick)="requestDeleteQuestion(q.id)"
+                                    />
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </ng-template>
+            <ng-template #panel>
+                <div class="flex flex-col gap-6 p-4 md:p-6 h-full overflow-y-auto" style="min-height: inherit">
+                    @if (store.selectedQuestion(); as q) {
+                        <div class="flex flex-col gap-6">
+                            <div>
+                                <h5 class="m-0 mb-4 font-semibold text-xl">Question settings</h5>
+                                <div class="flex flex-col gap-4">
+                                    <div class="flex flex-col gap-2">
+                                        <label [attr.for]="'qtext-' + q.id" class="font-semibold">Question text</label>
+                                        <textarea
+                                            pTextarea
+                                            fluid
+                                            rows="4"
+                                            [id]="'qtext-' + q.id"
+                                            [value]="q.text"
+                                            (input)="store.updateQuestionText(q.id, $any($event.target).value)"
+                                            placeholder="Enter the question shown to respondents"
+                                        ></textarea>
+                                    </div>
+                                    <div class="grid grid-cols-12 gap-4">
+                                        <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+                                            <label [attr.for]="'qvar-' + q.id" class="font-semibold">Variable key</label>
+                                            <input
+                                                pInputText
+                                                fluid
+                                                [id]="'qvar-' + q.id"
+                                                type="text"
+                                                [value]="q.variableKey"
+                                                (input)="store.updateQuestionVariableKey(q.id, $any($event.target).value)"
+                                                placeholder="e.g. Q1"
+                                            />
+                                        </div>
+                                        <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+                                            <label [attr.for]="'qtype-' + q.id" class="font-semibold">Type</label>
+                                            <p-select
+                                                inputId="qtype-{{ q.id }}"
+                                                [ngModel]="q.type"
+                                                (ngModelChange)="store.updateQuestionType(q.id, $event)"
+                                                [options]="questionTypeOptions"
+                                                optionLabel="label"
+                                                optionValue="value"
+                                                placeholder="Select type"
+                                                class="w-full"
+                                                fluid
+                                            ></p-select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            @if (q.type === 'SingleChoice' || q.type === 'MultipleChoice') {
+                                <div class="flex flex-col gap-4">
+                                    <div class="flex flex-wrap items-center justify-between gap-3">
+                                        <h5 class="m-0 font-semibold text-xl">Answer options</h5>
+                                        <p-button
+                                            label="Add option"
+                                            icon="pi pi-plus"
+                                            severity="secondary"
+                                            [outlined]="true"
+                                            size="small"
+                                            (onClick)="store.addOption(q.id); $event.stopPropagation()"
+                                        />
+                                    </div>
+                                    <div class="flex flex-col gap-3">
+                                        @for (opt of q.options; track opt.id) {
+                                            <p-inputgroup>
+                                                <p-inputgroup-addon>
+                                                    <span class="text-sm text-muted-color">#{{ opt.orderIndex }}</span>
+                                                </p-inputgroup-addon>
+                                                <input
+                                                    pInputText
+                                                    fluid
+                                                    type="text"
+                                                    placeholder="Option label"
+                                                    [value]="opt.text"
+                                                    (input)="store.updateOptionText(q.id, opt.id, $any($event.target).value)"
+                                                />
+                                                <p-inputnumber
+                                                    placeholder="Score"
+                                                    [ngModel]="opt.numericValue"
+                                                    (ngModelChange)="store.updateOptionNumericValue(q.id, opt.id, $event ?? 0)"
+                                                    [showButtons]="false"
+                                                    inputStyleClass="w-8rem"
+                                                />
+                                                <p-button
+                                                    icon="pi pi-trash"
+                                                    severity="danger"
+                                                    [outlined]="true"
+                                                    [rounded]="true"
+                                                    (onClick)="store.removeOption(q.id, opt.id); $event.stopPropagation()"
+                                                />
+                                            </p-inputgroup>
+                                        }
+                                        @if (q.options.length === 0) {
+                                            <p class="m-0 text-muted-color text-sm">No options yet. Add at least one for this question type.</p>
+                                        }
+                                    </div>
+                                </div>
+                            }
+
+                            <p-accordion value="0">
+                                <p-accordion-panel value="0">
+                                    <p-accordion-header>Logic &amp; Branching</p-accordion-header>
+                                    <p-accordion-content>
+                                        <div class="flex flex-col gap-4">
+                                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                                <p class="m-0 text-muted-color text-sm">
+                                                    Targets are limited to questions that appear later in the flow.
+                                                </p>
+                                                <p-button
+                                                    label="Add rule"
+                                                    icon="pi pi-sitemap"
+                                                    severity="secondary"
+                                                    [outlined]="true"
+                                                    size="small"
+                                                    (onClick)="store.addBranchingRule(q.id)"
+                                                />
+                                            </div>
+                                            @for (rule of q.branchingRules; track rule.id) {
+                                                <div class="flex flex-col gap-3 p-4 surface-ground border-round border-1 surface-border">
+                                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                                        <span class="font-semibold text-sm">Rule</span>
+                                                        <div class="flex flex-wrap items-center gap-2">
+                                                            @if (rule.isInvalid) {
+                                                                <span class="text-xs flex items-center gap-1 text-red-500">
+                                                                    <i class="pi pi-exclamation-triangle"></i>
+                                                                    Invalid target order
+                                                                </span>
+                                                            }
+                                                            @if (rule.isDefault) {
+                                                                <span class="text-xs font-semibold px-2 py-1 border-round bg-primary text-primary-contrast">Default</span>
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                    <div class="flex flex-col gap-2">
+                                                        <label [attr.for]="'cond-' + rule.id" class="text-sm font-semibold">Condition expression</label>
+                                                        <input
+                                                            pInputText
+                                                            fluid
+                                                            [id]="'cond-' + rule.id"
+                                                            type="text"
+                                                            [value]="rule.conditionExpression"
+                                                            (input)="store.updateBranchingRuleCondition(q.id, rule.id, $any($event.target).value)"
+                                                            placeholder="e.g. [Q1] == 'A'"
+                                                        />
+                                                    </div>
+                                                    <div class="flex flex-col gap-2">
+                                                        <label [attr.for]="'tgt-' + rule.id" class="text-sm font-semibold">Target question</label>
+                                                        <p-select
+                                                            [inputId]="'tgt-' + rule.id"
+                                                            [ngModel]="rule.targetQuestionId"
+                                                            (ngModelChange)="onRuleTargetChange(q.id, rule.id, $event)"
+                                                            [options]="branchTargetSelectOptions()"
+                                                            optionLabel="label"
+                                                            optionValue="value"
+                                                            placeholder="Select target question"
+                                                            showClear
+                                                            class="w-full"
+                                                            fluid
+                                                        ></p-select>
+                                                    </div>
+                                                    <div class="flex justify-end">
+                                                        <p-button
+                                                            label="Remove rule"
+                                                            icon="pi pi-trash"
+                                                            severity="danger"
+                                                            [text]="true"
+                                                            size="small"
+                                                            (onClick)="store.removeBranchingRule(q.id, rule.id)"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            }
+                                            @if (q.branchingRules.length === 0) {
+                                                <p class="m-0 text-muted-color text-sm">No branching rules. Add a rule to jump to a later question based on logic.</p>
+                                            }
+                                        </div>
+                                    </p-accordion-content>
+                                </p-accordion-panel>
+                            </p-accordion>
+                        </div>
+                    } @else {
+                        <div class="flex flex-col items-center justify-center gap-3 flex-1 text-center p-6 text-muted-color min-h-12rem">
+                            <i class="pi pi-arrow-left text-4xl opacity-40"></i>
+                            <p class="m-0 text-lg">Select a question from the list to edit its details.</p>
+                        </div>
+                    }
+                </div>
+            </ng-template>
+        </p-splitter>
+    </div>
+</p-fluid>
+
+<p-confirmdialog [style]="{ width: '32rem' }" />

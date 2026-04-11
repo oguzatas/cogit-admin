@@ -26,6 +26,16 @@ export class AppMenu implements OnInit {
             {
                 label: 'Home',
                 items: [{ label: 'Home', icon: 'pi pi-fw pi-home', routerLink: ['/'] }]
+            },
+            {
+                label: 'Assessments',
+                items: [
+                    {
+                        label: 'Test builder',
+                        icon: 'pi pi-fw pi-list-check',
+                        routerLink: ['/test-builder']
+                    }
+                ]
             }
         ];
     }
