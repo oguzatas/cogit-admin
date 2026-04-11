@@ -1,0 +1,11 @@
+System Architecture & Constraints:
+
+    Tech Stack: Angular v21, PrimeNG v21, TypeScript.
+
+    State Management: STRICTLY use Angular Signals (signal, computed, effect, linkedSignal). DO NOT use RxJS BehaviorSubject, Observable, or NgRx unless making an HTTP request.
+
+    Component Architecture: Use Standalone Components only. No ngModule.
+
+    UI Reference: We have a folder named _sakai_vault containing the original Sakai PrimeNG template. When generating UI, search this vault to copy the exact layout structures, utility classes, and PrimeNG component usages.
+
+    Workflow: Do not generate the UI first. Always define the Types/Interfaces and the Signal-based Service (Store) first, then bind the UI to it.
