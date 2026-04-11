@@ -36,6 +36,17 @@ export class AppMenu implements OnInit {
                         routerLink: ['/test-builder']
                     }
                 ]
+            },
+            {
+                label: 'Directory',
+                items: [
+                    {
+                        label: 'Tenants',
+                        icon: 'pi pi-fw pi-building',
+                        routerLink: ['/tenants'],
+                        routerLinkActiveOptions: { paths: 'subset', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' }
+                    }
+                ]
             }
         ];
     }

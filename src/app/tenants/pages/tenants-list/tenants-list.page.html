@@ -1,0 +1,65 @@
+<div class="card">
+    <p-toolbar styleClass="mb-6">
+        <ng-template #start>
+            <h4 class="m-0 font-semibold text-xl">Tenants</h4>
+        </ng-template>
+        <ng-template #end>
+            <p-button label="New tenant" icon="pi pi-plus" severity="secondary" (onClick)="openNew()" />
+        </ng-template>
+    </p-toolbar>
+
+    <p-table [value]="store.tenants()" [rowHover]="true" dataKey="id" [tableStyle]="{ 'min-width': '50rem' }">
+        <ng-template #header>
+            <tr>
+                <th style="min-width: 14rem">Name</th>
+                <th style="min-width: 18rem">Description</th>
+                <th style="width: 8rem">Departments</th>
+                <th style="width: 12rem"></th>
+            </tr>
+        </ng-template>
+        <ng-template #body let-tenant>
+            <tr (click)="openTenantDetail(tenant)" class="cursor-pointer">
+                <td class="font-semibold">{{ tenant.name }}</td>
+                <td class="text-muted-color text-sm">{{ tenant.description || '—' }}</td>
+                <td>
+                    <p-tag [value]="departmentCount(tenant).toString()" severity="info" />
+                </td>
+                <td (click)="$event.stopPropagation()">
+                    <p-button icon="pi pi-pencil" class="mr-2" [rounded]="true" [outlined]="true" (onClick)="openEdit(tenant)" />
+                    <p-button icon="pi pi-trash" severity="danger" [rounded]="true" [outlined]="true" (onClick)="confirmDeleteTenant(tenant)" />
+                </td>
+            </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+            <tr>
+                <td colspan="4" class="text-center text-muted-color py-6">No tenants yet. Create one to get started.</td>
+            </tr>
+        </ng-template>
+    </p-table>
+</div>
+
+<p-dialog
+    [(visible)]="tenantDialogVisible"
+    [style]="{ width: '450px' }"
+    [header]="dialogTenantId ? 'Edit tenant' : 'New tenant'"
+    [modal]="true"
+>
+    <ng-template #content>
+        <div class="flex flex-col gap-6">
+            <div class="flex flex-col gap-2">
+                <label for="tenantName" class="font-semibold">Name</label>
+                <input id="tenantName" pInputText [(ngModel)]="dialogName" fluid placeholder="Organisation name" />
+            </div>
+            <div class="flex flex-col gap-2">
+                <label for="tenantDesc" class="font-semibold">Description</label>
+                <textarea id="tenantDesc" pTextarea [(ngModel)]="dialogDescription" rows="3" fluid placeholder="Optional"></textarea>
+            </div>
+        </div>
+    </ng-template>
+    <ng-template #footer>
+        <p-button label="Cancel" icon="pi pi-times" text (onClick)="hideTenantDialog()" />
+        <p-button label="Save" icon="pi pi-check" (onClick)="saveTenant()" [disabled]="!dialogName.trim()" />
+    </ng-template>
+</p-dialog>
+
+<p-confirmdialog [style]="{ width: '32rem' }" />

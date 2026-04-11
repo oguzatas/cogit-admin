@@ -1,0 +1,318 @@
+@if (tenant(); as t) {
+    <div class="flex flex-col gap-4">
+        <p-toolbar styleClass="border-none bg-transparent p-0 gap-3 flex-wrap">
+            <ng-template #start>
+                <div class="flex flex-wrap items-center gap-3">
+                    <p-button icon="pi pi-arrow-left" severity="secondary" [text]="true" label="Tenants" (onClick)="goBack()" />
+                    <div class="flex flex-col gap-1">
+                        <h3 class="m-0 font-semibold text-2xl">{{ t.name }}</h3>
+                        <span class="text-muted-color text-sm">{{ t.description || 'No description' }}</span>
+                    </div>
+                </div>
+            </ng-template>
+        </p-toolbar>
+
+        <p-tabs [value]="mainTab" (valueChange)="onMainTabChange($event)">
+            <p-tablist>
+                <p-tab value="0">Departments</p-tab>
+                <p-tab value="1">People &amp; onboarding</p-tab>
+                <p-tab value="2">Test distribution</p-tab>
+            </p-tablist>
+            <p-tabpanels>
+                <p-tabpanel value="0">
+                    <div class="card flex flex-col gap-4">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div class="font-semibold text-xl">Departments</div>
+                            <p-button label="Add department" icon="pi pi-plus" severity="secondary" (onClick)="openNewDepartment()" />
+                        </div>
+                        <p-table [value]="t.departments" dataKey="id" [rowHover]="true" [tableStyle]="{ 'min-width': '40rem' }">
+                            <ng-template #header>
+                                <tr>
+                                    <th>Name</th>
+                                    <th style="width: 10rem">People</th>
+                                    <th style="width: 10rem"></th>
+                                </tr>
+                            </ng-template>
+                            <ng-template #body let-dept>
+                                <tr>
+                                    <td class="font-medium">{{ dept.name }}</td>
+                                    <td>{{ dept.employees.length }}</td>
+                                    <td>
+                                        <p-button icon="pi pi-pencil" class="mr-2" [rounded]="true" [outlined]="true" (onClick)="openEditDepartment(dept)" />
+                                        <p-button icon="pi pi-trash" severity="danger" [rounded]="true" [outlined]="true" (onClick)="confirmDeleteDepartment(dept)" />
+                                    </td>
+                                </tr>
+                            </ng-template>
+                            <ng-template #emptymessage>
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted-color py-6">No departments yet. Add one before provisioning people.</td>
+                                </tr>
+                            </ng-template>
+                        </p-table>
+                    </div>
+                </p-tabpanel>
+
+                <p-tabpanel value="1">
+                    <div class="card flex flex-col gap-4">
+                        <div class="font-semibold text-xl mb-2">Onboarding</div>
+                        <p class="m-0 text-muted-color text-sm mb-4">
+                            Silent provisioning creates active clients immediately with no email. Invite links let employees self-join until a use or time limit is
+                            reached.
+                        </p>
+                        <p-tabs [value]="onboardTab" (valueChange)="onOnboardTabChange($event)">
+                            <p-tablist>
+                                <p-tab value="0">Silent provisioning</p-tab>
+                                <p-tab value="1">Invite link manager</p-tab>
+                            </p-tablist>
+                            <p-tabpanels>
+                                <p-tabpanel value="0">
+                                    <div class="flex flex-col gap-6 pt-4">
+                                        <div class="flex flex-col gap-2">
+                                            <label for="silentDept" class="font-semibold">Department</label>
+                                            <p-select
+                                                inputId="silentDept"
+                                                [(ngModel)]="silentDepartmentId"
+                                                [options]="departmentOptions(t)"
+                                                optionLabel="label"
+                                                optionValue="value"
+                                                placeholder="Select department"
+                                                class="w-full md:max-w-md"
+                                                fluid
+                                            ></p-select>
+                                        </div>
+                                        <div class="grid grid-cols-12 gap-4">
+                                            <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+                                                <label for="silentName" class="font-semibold">Name</label>
+                                                <input id="silentName" pInputText [(ngModel)]="silentName" fluid placeholder="Client full name" />
+                                            </div>
+                                            <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+                                                <label for="silentEmail" class="font-semibold">Email</label>
+                                                <input id="silentEmail" pInputText [(ngModel)]="silentEmail" fluid type="email" placeholder="name@company.com" />
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-wrap gap-2 items-center">
+                                            <p-button
+                                                label="Add client"
+                                                icon="pi pi-user-plus"
+                                                (onClick)="submitSilentProvision()"
+                                                [disabled]="!silentDepartmentId || !silentName.trim() || !silentEmail.trim()"
+                                            />
+                                            <span class="text-muted-color text-sm">Client is created active immediately. No invitation email is sent.</span>
+                                        </div>
+                                        <div class="font-semibold">People in this tenant</div>
+                                        <p-table [value]="employeesFlat(t)" dataKey="employee.id" [tableStyle]="{ 'min-width': '36rem' }">
+                                            <ng-template #header>
+                                                <tr>
+                                                    <th>Department</th>
+                                                    <th>Name</th>
+                                                    <th>Email</th>
+                                                    <th>Source</th>
+                                                    <th>Status</th>
+                                                </tr>
+                                            </ng-template>
+                                            <ng-template #body let-row>
+                                                <tr>
+                                                    <td>{{ row.departmentName }}</td>
+                                                    <td>{{ row.employee.name }}</td>
+                                                    <td>{{ row.employee.email }}</td>
+                                                    <td>
+                                                        <p-tag
+                                                            [value]="row.employee.provisionSource === 'silent' ? 'Silent' : 'Invite'"
+                                                            [severity]="row.employee.provisionSource === 'silent' ? 'info' : 'success'"
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <p-tag [value]="row.employee.isActive ? 'Active' : 'Inactive'" [severity]="row.employee.isActive ? 'success' : 'secondary'" />
+                                                    </td>
+                                                </tr>
+                                            </ng-template>
+                                            <ng-template #emptymessage>
+                                                <tr>
+                                                    <td colspan="5" class="text-center text-muted-color py-4">No employees yet.</td>
+                                                </tr>
+                                            </ng-template>
+                                        </p-table>
+                                    </div>
+                                </p-tabpanel>
+                                <p-tabpanel value="1">
+                                    <div class="flex flex-col gap-4 pt-4">
+                                        <div class="flex flex-wrap items-center justify-between gap-3">
+                                            <p class="m-0 text-muted-color text-sm max-w-40rem">
+                                                Each link can cap how many people may join and when it stops working. Revoke anytime.
+                                            </p>
+                                            <p-button label="Create invite link" icon="pi pi-link" severity="secondary" (onClick)="openInviteDialog()" />
+                                        </div>
+                                        <p-table [value]="t.inviteLinks" dataKey="id" [rowHover]="true" [tableStyle]="{ 'min-width': '48rem' }">
+                                            <ng-template #header>
+                                                <tr>
+                                                    <th style="min-width: 10rem">Token</th>
+                                                    <th>Department</th>
+                                                    <th style="min-width: 8rem">Uses</th>
+                                                    <th style="min-width: 10rem">Expires (UTC)</th>
+                                                    <th style="min-width: 8rem">Status</th>
+                                                    <th style="min-width: 8rem"></th>
+                                                </tr>
+                                            </ng-template>
+                                            <ng-template #body let-link>
+                                                <tr>
+                                                    <td>
+                                                        <code class="text-sm">{{ link.token }}</code>
+                                                        <div class="text-xs text-muted-color mt-1">{{ invitePreviewPath(link.token) }}</div>
+                                                    </td>
+                                                    <td>{{ departmentLabel(t, link.departmentId) }}</td>
+                                                    <td>{{ link.usedCount }} / {{ link.maxUses }}</td>
+                                                    <td class="text-sm">{{ link.expiresAt | slice: 0:16 }}…</td>
+                                                    <td>
+                                                        <p-tag [value]="inviteStatus(link)" [severity]="inviteSeverity(link)" />
+                                                    </td>
+                                                    <td>
+                                                        <p-button
+                                                            icon="pi pi-ban"
+                                                            severity="danger"
+                                                            [text]="true"
+                                                            [disabled]="link.isRevoked"
+                                                            label="Revoke"
+                                                            (onClick)="confirmRevokeInvite(link)"
+                                                        />
+                                                    </td>
+                                                </tr>
+                                            </ng-template>
+                                            <ng-template #emptymessage>
+                                                <tr>
+                                                    <td colspan="6" class="text-center text-muted-color py-4">No invite links yet.</td>
+                                                </tr>
+                                            </ng-template>
+                                        </p-table>
+                                    </div>
+                                </p-tabpanel>
+                            </p-tabpanels>
+                        </p-tabs>
+                    </div>
+                </p-tabpanel>
+
+                <p-tabpanel value="2">
+                    <div class="card flex flex-col gap-4">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <div class="font-semibold text-xl">Test distribution</div>
+                                <p class="m-0 mt-2 text-muted-color text-sm">Assign assessments (placeholder title) to one or more departments.</p>
+                            </div>
+                            <p-button label="New assignment" icon="pi pi-send" severity="secondary" (onClick)="openDistDialog()" />
+                        </div>
+                        <p-table [value]="t.testDistributions" dataKey="id" [tableStyle]="{ 'min-width': '40rem' }">
+                            <ng-template #header>
+                                <tr>
+                                    <th>Assessment</th>
+                                    <th>Departments</th>
+                                    <th style="width: 8rem"></th>
+                                </tr>
+                            </ng-template>
+                            <ng-template #body let-row>
+                                <tr>
+                                    <td class="font-medium">{{ row.testTitle }}</td>
+                                    <td class="text-sm">{{ distributionDeptLabels(t, row) }}</td>
+                                    <td>
+                                        <p-button icon="pi pi-trash" severity="danger" [rounded]="true" [outlined]="true" (onClick)="confirmRemoveDistribution(row)" />
+                                    </td>
+                                </tr>
+                            </ng-template>
+                            <ng-template #emptymessage>
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted-color py-6">No distributions configured.</td>
+                                </tr>
+                            </ng-template>
+                        </p-table>
+                    </div>
+                </p-tabpanel>
+            </p-tabpanels>
+        </p-tabs>
+    </div>
+
+    <p-dialog [(visible)]="deptDialogVisible" [style]="{ width: '400px' }" [header]="deptEditId ? 'Edit department' : 'New department'" [modal]="true">
+        <ng-template #content>
+            <div class="flex flex-col gap-4">
+                <div class="flex flex-col gap-2">
+                    <label for="deptName" class="font-semibold">Name</label>
+                    <input id="deptName" pInputText [(ngModel)]="deptName" fluid />
+                </div>
+            </div>
+        </ng-template>
+        <ng-template #footer>
+            <p-button label="Cancel" text (onClick)="hideDeptDialog()" />
+            <p-button label="Save" icon="pi pi-check" (onClick)="saveDepartment()" [disabled]="!deptName.trim()" />
+        </ng-template>
+    </p-dialog>
+
+    <p-dialog [(visible)]="inviteDialogVisible" [style]="{ width: '440px' }" header="Create invite link" [modal]="true">
+        <ng-template #content>
+            <div class="flex flex-col gap-4">
+                <div class="flex flex-col gap-2">
+                    <label for="invDept" class="font-semibold">Default department</label>
+                    <p-select
+                        inputId="invDept"
+                        [(ngModel)]="inviteDepartmentId"
+                        [options]="departmentOptions(t)"
+                        optionLabel="label"
+                        optionValue="value"
+                        placeholder="Department"
+                        class="w-full"
+                        fluid
+                    ></p-select>
+                </div>
+                <div class="grid grid-cols-12 gap-4">
+                    <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+                        <label for="invMax" class="font-semibold">Max uses</label>
+                        <p-inputnumber inputId="invMax" [(ngModel)]="inviteMaxUses" [min]="1" [showButtons]="true" fluid />
+                    </div>
+                    <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+                        <label for="invHours" class="font-semibold">Valid for (hours)</label>
+                        <p-inputnumber inputId="invHours" [(ngModel)]="inviteValidHours" [min]="1" [showButtons]="true" fluid />
+                    </div>
+                </div>
+                <p class="m-0 text-xs text-muted-color">Example: 60 uses and 1 hour — link stops when either limit is hit.</p>
+            </div>
+        </ng-template>
+        <ng-template #footer>
+            <p-button label="Cancel" text (onClick)="hideInviteDialog()" />
+            <p-button label="Create" icon="pi pi-check" (onClick)="createInvite()" [disabled]="!inviteDepartmentId" />
+        </ng-template>
+    </p-dialog>
+
+    <p-dialog [(visible)]="distDialogVisible" [style]="{ width: '480px' }" header="New test assignment" [modal]="true">
+        <ng-template #content>
+            <div class="flex flex-col gap-4">
+                <div class="flex flex-col gap-2">
+                    <label for="distTitle" class="font-semibold">Assessment title</label>
+                    <input id="distTitle" pInputText [(ngModel)]="distTitle" fluid placeholder="e.g. Annual safety check" />
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label for="distDepts" class="font-semibold">Departments</label>
+                    <p-multiselect
+                        inputId="distDepts"
+                        [(ngModel)]="distDepartmentIds"
+                        [options]="departmentOptions(t)"
+                        optionLabel="label"
+                        optionValue="value"
+                        display="chip"
+                        placeholder="Select departments"
+                        class="w-full"
+                        fluid
+                    />
+                </div>
+            </div>
+        </ng-template>
+        <ng-template #footer>
+            <p-button label="Cancel" text (onClick)="hideDistDialog()" />
+            <p-button label="Save" icon="pi pi-check" (onClick)="saveDistribution()" [disabled]="!distTitle.trim() || distDepartmentIds.length === 0" />
+        </ng-template>
+    </p-dialog>
+} @else {
+    <div class="card flex flex-col gap-4 items-center text-center py-8">
+        <i class="pi pi-building text-4xl text-muted-color"></i>
+        <h4 class="m-0 font-semibold text-xl">Tenant not found</h4>
+        <p class="m-0 text-muted-color max-w-28rem">This tenant may have been deleted, or the link is invalid.</p>
+        <p-button label="Back to tenants" icon="pi pi-arrow-left" (onClick)="goBack()" />
+    </div>
+}
+
+<p-confirmdialog [style]="{ width: '32rem' }" />
