@@ -4,7 +4,7 @@ import { TreeModule } from 'primeng/tree';
 import { FormsModule } from '@angular/forms';
 import { TreeTableModule } from 'primeng/treetable';
 import { CommonModule } from '@angular/common';
-import { NodeService } from '@/app/pages/service/node.service';
+import { NodeService } from '@/_sakai_vault/app/pages/service/node.service';
 
 @Component({
     selector: 'app-tree-demo',

@@ -21,6 +21,9 @@
         "paths": {
             "@/*": [
                 "src/*"
+            ],
+            "@/_sakai_vault/*": [
+                "src/_sakai_vault/*"
             ]
         }
     },
