@@ -65,7 +65,8 @@
 </div>
 
 <p-dialog
-    [(visible)]="tenantDialogVisible"
+    [visible]="tenantDialogVisible()"
+    (visibleChange)="onTenantDialogVisibleChange($event)"
     [style]="{ width: '450px' }"
     [header]="dialogTenantId ? 'Edit tenant' : 'New tenant'"
     [modal]="true"

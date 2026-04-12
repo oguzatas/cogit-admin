@@ -68,7 +68,10 @@ export class TenantDetailPage {
     if (!id) {
       return null;
     }
-    return this.store.tenants().find((t) => t.id === id) ?? null;
+    const sid = String(id);
+    return (
+      this.store.tenants().find((t) => String(t.id) === sid) ?? null
+    );
   });
 
   readonly testOptions = signal<{ label: string; value: string }[]>([]);

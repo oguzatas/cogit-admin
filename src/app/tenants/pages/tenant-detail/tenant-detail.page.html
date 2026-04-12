@@ -371,7 +371,12 @@
             />
         </ng-template>
     </p-dialog>
-} @else {
+} @else if (routeTenantId() && store.detailLoading()) {
+    <div class="card flex flex-col gap-4 items-center justify-center text-center py-12">
+        <p-progress-spinner strokeWidth="4" styleClass="w-12 h-12" />
+        <p class="m-0 text-muted-color">Loading tenant…</p>
+    </div>
+} @else if (routeTenantId()) {
     <div class="card flex flex-col gap-4 items-center text-center py-8">
         <i class="pi pi-building text-4xl text-muted-color"></i>
         <h4 class="m-0 font-semibold text-xl">Tenant not found</h4>

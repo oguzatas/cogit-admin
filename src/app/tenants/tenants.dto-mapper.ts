@@ -11,20 +11,55 @@ import type {
   TenantTestDistribution,
 } from './tenants.models';
 
-export function mapDepartmentShell(d: DepartmentResponseDto): Department {
+function str(v: unknown): string {
+  if (v == null) {
+    return '';
+  }
+  return String(v);
+}
+
+/** Supports camelCase or PascalCase and numeric ids from JSON. */
+export function normalizeTenantResponseDto(raw: TenantResponseDto): TenantResponseDto {
+  const r = raw as unknown as Record<string, unknown>;
   return {
-    id: d.id,
-    name: d.name,
+    id: str(r['id'] ?? r['Id']),
+    name: str(r['name'] ?? r['Name']),
+    description: (r['description'] ?? r['Description'] ?? null) as
+      | string
+      | null
+      | undefined,
+    isDeleted: (r['isDeleted'] ?? r['IsDeleted']) as boolean | undefined,
+    deletedAt: (r['deletedAt'] ?? r['DeletedAt'] ?? null) as string | null | undefined,
+  };
+}
+
+export function normalizeDepartmentResponseDto(
+  raw: DepartmentResponseDto,
+): DepartmentResponseDto {
+  const r = raw as unknown as Record<string, unknown>;
+  return {
+    id: str(r['id'] ?? r['Id']),
+    tenantId: str(r['tenantId'] ?? r['TenantId']),
+    name: str(r['name'] ?? r['Name']),
+  };
+}
+
+export function mapDepartmentShell(d: DepartmentResponseDto): Department {
+  const n = normalizeDepartmentResponseDto(d);
+  return {
+    id: n.id,
+    name: n.name,
     employees: [],
   };
 }
 
 export function mapEmployeeDto(e: TenantEmployeeResponseDto): TenantEmployee {
+  const er = e as unknown as Record<string, unknown>;
   const source = e.provisionSource ?? 'silent';
   return {
-    id: e.id,
-    name: e.fullName,
-    email: e.email,
+    id: str(er['id'] ?? er['Id']),
+    name: str(er['fullName'] ?? er['FullName']),
+    email: str(er['email'] ?? er['Email']),
     isActive: e.isActive ?? true,
     provisionSource: source === 'invite' ? 'invite' : 'silent',
     invitedViaLinkId: e.invitedViaInviteCodeId ?? null,
@@ -36,16 +71,17 @@ export function mapInviteDto(
   i: InviteCodeListItemResponseDto,
   tenantId: string,
 ): InviteLink {
+  const r = i as unknown as Record<string, unknown>;
   return {
-    id: i.id,
+    id: str(r['id'] ?? r['Id']),
     tenantId,
-    departmentId: i.departmentId,
-    token: i.code,
-    maxUses: i.maxUses ?? 0,
-    usedCount: i.usedCount ?? 0,
-    expiresAt: i.expiresAt ?? new Date().toISOString(),
+    departmentId: str(r['departmentId'] ?? r['DepartmentId']),
+    token: str(r['code'] ?? r['Code']),
+    maxUses: Number(r['maxUses'] ?? r['MaxUses'] ?? 0) || 0,
+    usedCount: Number(r['usedCount'] ?? r['UsedCount'] ?? 0) || 0,
+    expiresAt: str(r['expiresAt'] ?? r['ExpiresAt']) || new Date().toISOString(),
     createdAt: '',
-    isRevoked: i.isRevoked ?? false,
+    isRevoked: Boolean(r['isRevoked'] ?? r['IsRevoked'] ?? false),
   };
 }
 
@@ -55,10 +91,11 @@ export function buildTenantFromParts(
   inviteLinks: InviteLink[],
   testDistributions: TenantTestDistribution[],
 ): Tenant {
+  const n = normalizeTenantResponseDto(dto);
   return {
-    id: dto.id,
-    name: dto.name,
-    description: (dto.description ?? '').trim(),
+    id: n.id,
+    name: n.name,
+    description: (n.description ?? '').trim(),
     departments,
     inviteLinks,
     testDistributions,
@@ -70,9 +107,10 @@ export function groupAssignmentsToDistributions(
 ): TenantTestDistribution[] {
   const byTest = new Map<string, AssignmentListItemResponseDto[]>();
   for (const a of items) {
-    const list = byTest.get(a.testId) ?? [];
+    const tid = str(a.testId);
+    const list = byTest.get(tid) ?? [];
     list.push(a);
-    byTest.set(a.testId, list);
+    byTest.set(tid, list);
   }
   const rows: TenantTestDistribution[] = [];
   for (const [, group] of byTest) {
@@ -83,15 +121,16 @@ export function groupAssignmentsToDistributions(
     const title =
       first.testTitle?.trim() ||
       (first.testId ? `Assessment ${first.testId}` : 'Assessment');
-    const deptIds = [...new Set(group.map((g) => g.departmentId))];
-    const assignmentIds = group.map((g) => g.id);
+    const deptIds = [...new Set(group.map((g) => str(g.departmentId)))];
+    const assignmentIds = group.map((g) => str(g.id));
     const dates = group
       .map((g) => g.createdAt)
       .filter((x): x is string => !!x)
       .sort();
+    const testId = str(first.testId);
     rows.push({
-      id: first.testId,
-      testId: first.testId,
+      id: testId,
+      testId,
       testTitle: title,
       assignedDepartmentIds: deptIds,
       assignmentIds,

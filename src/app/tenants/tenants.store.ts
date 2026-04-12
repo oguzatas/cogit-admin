@@ -17,6 +17,7 @@ import {
   mapDepartmentShell,
   mapEmployeeDto,
   mapInviteDto,
+  normalizeTenantResponseDto,
 } from './tenants.dto-mapper';
 import type { Department, InviteLink, Tenant } from './tenants.models';
 
@@ -56,7 +57,9 @@ export class TenantsStore {
     if (!id) {
       return null;
     }
-    return this.tenants().find((t) => t.id === id) ?? null;
+    return (
+      this.tenants().find((t) => String(t.id) === String(id)) ?? null
+    );
   });
 
   readonly tenantCount = computed(() => this.tenants().length);
@@ -67,7 +70,7 @@ export class TenantsStore {
 
   private upsertTenant(tenant: Tenant): void {
     this.tenants.update((list) => {
-      const i = list.findIndex((t) => t.id === tenant.id);
+      const i = list.findIndex((t) => String(t.id) === String(tenant.id));
       if (i === -1) {
         return [...list, tenant];
       }
@@ -78,8 +81,12 @@ export class TenantsStore {
   }
 
   private removeTenantLocal(id: string): void {
-    this.tenants.update((list) => list.filter((t) => t.id !== id));
-    this.selectedTenantId.update((cur) => (cur === id ? null : cur));
+    this.tenants.update((list) =>
+      list.filter((t) => String(t.id) !== String(id)),
+    );
+    this.selectedTenantId.update((cur) =>
+      cur != null && String(cur) === String(id) ? null : cur,
+    );
   }
 
   /** Load directory list with department shells (no invites / employees / assignments). */
@@ -92,8 +99,9 @@ export class TenantsStore {
           rows.length === 0
             ? of([] as Tenant[])
             : forkJoin(
-                rows.map((dto) =>
-                  this.departmentsApi.list(dto.id).pipe(
+                rows.map((raw) => {
+                  const dto = normalizeTenantResponseDto(raw);
+                  return this.departmentsApi.list(dto.id).pipe(
                     catchError(() => of([] as DepartmentResponseDto[])),
                     map((depts) =>
                       buildTenantFromParts(
@@ -103,8 +111,8 @@ export class TenantsStore {
                         [],
                       ),
                     ),
-                  ),
-                ),
+                  );
+                }),
               ),
         ),
         finalize(() => this.listLoading.set(false)),
@@ -133,11 +141,13 @@ export class TenantsStore {
       ),
     }).pipe(
       switchMap(({ tenant, departments, assignments }) => {
+        const tenantDto = normalizeTenantResponseDto(tenant);
+        const apiTenantId = tenantDto.id;
         const shells = departments.map(mapDepartmentShell);
         if (shells.length === 0) {
           return of(
             buildTenantFromParts(
-              tenant,
+              tenantDto,
               [],
               [],
               groupAssignmentsToDistributions(assignments),
@@ -147,16 +157,16 @@ export class TenantsStore {
         return forkJoin(
           shells.map((d) =>
             forkJoin({
-              invites: this.inviteCodesApi.list(tenantId, d.id).pipe(
+              invites: this.inviteCodesApi.list(apiTenantId, d.id).pipe(
                 catchError(() => of([] as InviteCodeListItemResponseDto[])),
               ),
-              employees: this.employeesApi.list(tenantId, d.id).pipe(
+              employees: this.employeesApi.list(apiTenantId, d.id).pipe(
                 catchError(() => of([] as TenantEmployeeResponseDto[])),
               ),
             }).pipe(
               map(({ invites, employees }) => ({
                 departmentId: d.id,
-                invites: invites.map((i) => mapInviteDto(i, tenantId)),
+                invites: invites.map((i) => mapInviteDto(i, apiTenantId)),
                 employees: employees.map(mapEmployeeDto),
               })),
             ),
@@ -173,7 +183,7 @@ export class TenantsStore {
               };
             });
             return buildTenantFromParts(
-              tenant,
+              tenantDto,
               departmentsFull,
               inviteLinks,
               groupAssignmentsToDistributions(assignments),
@@ -205,7 +215,8 @@ export class TenantsStore {
         description: payload.description?.trim() || undefined,
       })
       .pipe(
-        tap((dto) => {
+        tap((raw) => {
+          const dto = normalizeTenantResponseDto(raw);
           this.upsertTenant(
             buildTenantFromParts(dto, [], [], []),
           );
@@ -215,7 +226,7 @@ export class TenantsStore {
             detail: dto.name,
           });
         }),
-        map((dto) => dto.id),
+        map((raw) => normalizeTenantResponseDto(raw).id),
         catchError((err) => {
           this.messages.add({
             severity: 'error',
@@ -234,8 +245,9 @@ export class TenantsStore {
         description: patch.description?.trim() || undefined,
       })
       .pipe(
-        tap((dto) => {
-          const cur = this.tenants().find((t) => t.id === tenantId);
+        tap((raw) => {
+          const dto = normalizeTenantResponseDto(raw);
+          const cur = this.tenants().find((t) => String(t.id) === String(tenantId));
           this.upsertTenant(
             buildTenantFromParts(
               dto,

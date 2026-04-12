@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { ConfirmationService } from 'primeng/api';
@@ -40,7 +40,7 @@ export class TenantsListPage implements OnInit {
   private readonly router = inject(Router);
   private readonly confirmation = inject(ConfirmationService);
 
-  tenantDialogVisible = false;
+  readonly tenantDialogVisible = signal(false);
   dialogTenantId: string | null = null;
   dialogName = '';
   dialogDescription = '';
@@ -54,18 +54,22 @@ export class TenantsListPage implements OnInit {
     this.dialogTenantId = null;
     this.dialogName = '';
     this.dialogDescription = '';
-    this.tenantDialogVisible = true;
+    this.tenantDialogVisible.set(true);
   }
 
   openEdit(tenant: Tenant): void {
-    this.dialogTenantId = tenant.id;
+    this.dialogTenantId = String(tenant.id);
     this.dialogName = tenant.name;
     this.dialogDescription = tenant.description;
-    this.tenantDialogVisible = true;
+    this.tenantDialogVisible.set(true);
   }
 
   hideTenantDialog(): void {
-    this.tenantDialogVisible = false;
+    this.tenantDialogVisible.set(false);
+  }
+
+  onTenantDialogVisibleChange(visible: boolean | undefined): void {
+    this.tenantDialogVisible.set(Boolean(visible));
   }
 
   saveTenant(): void {
@@ -93,9 +97,9 @@ export class TenantsListPage implements OnInit {
       this.store.createTenant$({ name, description: this.dialogDescription }).subscribe({
         next: (id) => {
           this.savePending = false;
-          this.store.selectTenant(id);
-          void this.router.navigate(['/tenants', id]);
           this.hideTenantDialog();
+          this.store.selectTenant(String(id));
+          void this.router.navigate(['/tenants', String(id)]);
         },
         error: () => {
           this.savePending = false;
@@ -105,8 +109,9 @@ export class TenantsListPage implements OnInit {
   }
 
   openTenantDetail(tenant: Tenant): void {
-    this.store.selectTenant(tenant.id);
-    void this.router.navigate(['/tenants', tenant.id]);
+    const id = String(tenant.id);
+    this.store.selectTenant(id);
+    void this.router.navigate(['/tenants', id]);
   }
 
   confirmDeleteTenant(tenant: Tenant): void {
@@ -118,7 +123,7 @@ export class TenantsListPage implements OnInit {
       rejectLabel: 'Cancel',
       acceptButtonStyleClass: 'p-button-danger',
       accept: () => {
-        this.store.deleteTenant$(tenant.id).subscribe();
+        this.store.deleteTenant$(String(tenant.id)).subscribe();
       },
     });
   }
