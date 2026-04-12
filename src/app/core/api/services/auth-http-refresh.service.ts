@@ -18,15 +18,13 @@ import {
   throwError,
 } from 'rxjs';
 import { API_URL } from '../tokens/api-url.token';
-import type {
-  UserRefreshRequestDto,
-  UserRefreshResponseDto,
-} from '../models/auth.dto';
+import type { UserRefreshResponseDto } from '../models/auth.dto';
 import { TokenStorageService } from './token-storage.service';
 
 /**
- * Performs refresh using {@link HttpBackend} so the auth interceptor is not re-entered.
- * De-duplicates concurrent refresh calls.
+ * Calls `/api/Users/refresh` via `HttpBackend` (bypasses interceptors).
+ * Refresh token is expected as an **HttpOnly cookie** on the API origin; sends
+ * `withCredentials: true` and an empty JSON body.
  */
 @Injectable({ providedIn: 'root' })
 export class AuthHttpRefreshService {
@@ -40,17 +38,14 @@ export class AuthHttpRefreshService {
     if (this.inFlight) {
       return this.inFlight;
     }
-    const refreshToken = this.tokens.getRefreshToken();
-    if (!refreshToken) {
-      return throwError(() => new Error('No refresh token'));
-    }
     const url = `${this.apiUrl}/api/Users/refresh`;
-    const req = new HttpRequest<UserRefreshRequestDto>(
+    const req = new HttpRequest<Record<string, never>>(
       'POST',
       url,
-      { refreshToken },
+      {},
       {
         headers: new HttpHeaders({ 'Content-Type': 'application/json' }),
+        withCredentials: true,
       },
     );
     this.inFlight = this.backend.handle(req).pipe(
@@ -65,10 +60,11 @@ export class AuthHttpRefreshService {
         return body;
       }),
       tap((body) => {
-        this.tokens.setAccessToken(body.accessToken);
-        if (body.refreshToken) {
-          this.tokens.setRefreshToken(body.refreshToken);
-        }
+        this.tokens.applyAccessFromAuthResponse(
+          body.accessToken,
+          body.expiresIn ?? 900,
+          { clearStoredRefreshToken: true },
+        );
       }),
       catchError((err) => {
         this.tokens.clear();

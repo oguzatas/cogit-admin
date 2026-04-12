@@ -7,11 +7,11 @@ import type {
   UserLoginResponseDto,
   UserLogoutRequestDto,
   UserLogoutResponseDto,
-  UserRefreshRequestDto,
   UserRefreshResponseDto,
   UserRegisterRequestDto,
   UserRegisterResponseDto,
 } from '../models/auth.dto';
+import { AuthIdentityService } from './auth-identity.service';
 import { TokenStorageService } from './token-storage.service';
 
 /** `/api/Users` — authentication & session. */
@@ -20,13 +20,22 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = inject(API_URL);
   private readonly tokens = inject(TokenStorageService);
+  private readonly identity = inject(AuthIdentityService);
 
   register(body: UserRegisterRequestDto): Observable<UserRegisterResponseDto> {
     const url = `${this.apiUrl}/api/Users/register`;
     return this.http.post<UserRegisterResponseDto>(url, body).pipe(
       tap((res) => {
-        if (res.accessToken && res.refreshToken) {
-          this.tokens.setTokens(res.accessToken, res.refreshToken);
+        if (res.accessToken) {
+          this.tokens.applyAccessFromAuthResponse(
+            res.accessToken,
+            res.expiresIn,
+            { clearStoredRefreshToken: !res.refreshToken },
+          );
+          if (res.refreshToken) {
+            this.tokens.setRefreshToken(res.refreshToken);
+          }
+          this.identity.recordLogin(body.email);
         }
       }),
     );
@@ -35,22 +44,30 @@ export class AuthService {
   login(body: UserLoginRequestDto): Observable<UserLoginResponseDto> {
     const url = `${this.apiUrl}/api/Users/login`;
     return this.http.post<UserLoginResponseDto>(url, body).pipe(
-      tap((res) => this.tokens.setTokens(res.accessToken, res.refreshToken)),
+      tap((res) => {
+        this.tokens.applyAccessFromAuthResponse(
+          res.accessToken,
+          res.expiresIn,
+          { clearStoredRefreshToken: true },
+        );
+        this.identity.recordLogin(body.email);
+      }),
     );
   }
 
   /**
-   * Refresh tokens. Prefer letting {@link authInterceptor} call this flow on 401;
-   * exposed for explicit refresh if needed.
+   * Refresh access token; prefer the HTTP `authInterceptor` flow on 401.
+   * Uses cookie-based refresh when the server sets `refresh_token` HttpOnly.
    */
-  refresh(body: UserRefreshRequestDto): Observable<UserRefreshResponseDto> {
+  refresh(): Observable<UserRefreshResponseDto> {
     const url = `${this.apiUrl}/api/Users/refresh`;
-    return this.http.post<UserRefreshResponseDto>(url, body).pipe(
+    return this.http.post<UserRefreshResponseDto>(url, {}).pipe(
       tap((res) => {
-        this.tokens.setAccessToken(res.accessToken);
-        if (res.refreshToken) {
-          this.tokens.setRefreshToken(res.refreshToken);
-        }
+        this.tokens.applyAccessFromAuthResponse(
+          res.accessToken,
+          res.expiresIn ?? 900,
+          { clearStoredRefreshToken: true },
+        );
       }),
     );
   }
@@ -59,7 +76,7 @@ export class AuthService {
     const url = `${this.apiUrl}/api/Users/logout`;
     const body: UserLogoutRequestDto = {};
     return this.http.post<UserLogoutResponseDto>(url, body).pipe(
-      tap(() => this.tokens.clear()),
+      tap(() => this.identity.clear()),
     );
   }
 }

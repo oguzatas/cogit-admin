@@ -47,8 +47,32 @@ export function isAccessJwtValid(accessToken: string, clockSkewSec = 60): boolea
   return exp > now + clockSkewSec;
 }
 
-/** Minimal structural check after a successful refresh when `exp` is absent or odd. */
+/** Three-segment JWT shape (does not verify signature). */
 export function looksLikeJwt(accessToken: string): boolean {
   const parts = accessToken.split('.');
   return parts.length === 3 && parts.every((p) => p.length > 0);
+}
+
+/**
+ * Whether routing may treat the user as signed in: valid JWT `exp`, or opaque bearer token
+ * that is still inside the wall-clock window from `expiresIn` (stored as `opaqueExpiresAtMs`).
+ */
+export function isAccessTokenValidForShell(
+  accessToken: string | null,
+  opaqueExpiresAtMs: number | null,
+  clockSkewSec = 60,
+): boolean {
+  if (!accessToken || accessToken.length < 8) {
+    return false;
+  }
+  if (isAccessJwtValid(accessToken, clockSkewSec)) {
+    return true;
+  }
+  if (looksLikeJwt(accessToken)) {
+    return false;
+  }
+  if (opaqueExpiresAtMs != null) {
+    return Date.now() < opaqueExpiresAtMs - clockSkewSec * 1000;
+  }
+  return true;
 }

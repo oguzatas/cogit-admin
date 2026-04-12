@@ -6,6 +6,7 @@ import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, switchMap, throwError } from 'rxjs';
 import { sanitizeReturnUrl } from '@/app/core/auth/sanitize-return-url';
+import { isApiOriginRequest } from '../utils/api-request.util';
 import { API_URL } from '../tokens/api-url.token';
 import { AuthHttpRefreshService } from '../services/auth-http-refresh.service';
 import { TokenStorageService } from '../services/token-storage.service';
@@ -54,14 +55,17 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     });
   };
 
+  const useCreds = isApiOriginRequest(req.url, apiUrl);
+  const prepared = useCreds ? req.clone({ withCredentials: true }) : req;
+
   const isPublic = isPublicApiUrl(req.url, apiUrl);
   const access = tokens.getAccessToken();
   const withAuth =
     !isPublic && access
-      ? req.clone({
+      ? prepared.clone({
           setHeaders: { Authorization: `Bearer ${access}` },
         })
-      : req;
+      : prepared;
 
   return next(withAuth).pipe(
     catchError((err: unknown) => {
@@ -83,7 +87,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
             navigateToLogin();
             return throwError(() => err);
           }
-          const retryReq = req.clone({
+          const retryReq = withAuth.clone({
             setHeaders: {
               Authorization: `Bearer ${nextAccess}`,
               [AUTH_RETRY_HEADER]: '1',

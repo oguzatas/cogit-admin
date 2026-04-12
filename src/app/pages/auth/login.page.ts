@@ -6,6 +6,7 @@ import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { PasswordModule } from 'primeng/password';
 import { AuthService } from '@/app/core/api/services/auth.service';
+import { ADMIN_DEFAULT_URL } from '@/app/core/auth/auth-navigation';
 import { sanitizeReturnUrl } from '@/app/core/auth/sanitize-return-url';
 import { AppFloatingConfigurator } from '@/app/layout/component/app.floatingconfigurator';
 
@@ -44,8 +45,9 @@ export class LoginPage {
       next: () => {
         this.submitting.set(false);
         const next =
-          sanitizeReturnUrl(this.route.snapshot.queryParamMap.get('returnUrl')) ?? '/';
-        void this.router.navigateByUrl(next);
+          sanitizeReturnUrl(this.route.snapshot.queryParamMap.get('returnUrl')) ??
+          ADMIN_DEFAULT_URL;
+        void this.router.navigateByUrl(next, { replaceUrl: true });
       },
       error: (err: unknown) => {
         this.submitting.set(false);
