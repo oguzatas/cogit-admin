@@ -9,13 +9,11 @@ import { InviteCodeService } from '@/app/core/api/services/invite-code.service';
 import { TenantEmployeeService } from '@/app/core/api/services/tenant-employee.service';
 import { TenantService } from '@/app/core/api/services/tenant.service';
 import type { InviteCodeListItemResponseDto } from '@/app/core/api/models/invite-code.dto';
-import type { TenantEmployeeResponseDto } from '@/app/core/api/models/tenant-employee.dto';
 import type { DepartmentResponseDto } from '@/app/core/api/models/department.dto';
 import {
   buildTenantFromParts,
   groupAssignmentsToDistributions,
   mapDepartmentShell,
-  mapEmployeeDto,
   mapInviteDto,
   normalizeTenantResponseDto,
 } from './tenants.dto-mapper';
@@ -51,6 +49,12 @@ export class TenantsStore {
   readonly selectedTenantId = signal<string | null>(null);
   readonly listLoading = signal(false);
   readonly detailLoading = signal(false);
+
+  /**
+   * Bumped after silent provisioning so the people directory can refetch from
+   * {@link TenantEmployeeService.listPaged} without coupling the store to that UI.
+   */
+  readonly tenantPeopleDirectoryRevision = signal(0);
 
   readonly selectedTenant = computed(() => {
     const id = this.selectedTenantId();
@@ -154,37 +158,26 @@ export class TenantsStore {
             ),
           );
         }
-        return forkJoin(
-          shells.map((d) =>
-            forkJoin({
-              invites: this.inviteCodesApi.list(apiTenantId, d.id).pipe(
+        return forkJoin({
+          inviteChunks: forkJoin(
+            shells.map((d) =>
+              this.inviteCodesApi.list(apiTenantId, d.id).pipe(
                 catchError(() => of([] as InviteCodeListItemResponseDto[])),
+                map((invites) => ({
+                  departmentId: d.id,
+                  invites: invites.map((i) => mapInviteDto(i, apiTenantId)),
+                })),
               ),
-              employees: this.employeesApi.list(apiTenantId, d.id).pipe(
-                catchError(() => of([] as TenantEmployeeResponseDto[])),
-              ),
-            }).pipe(
-              map(({ invites, employees }) => ({
-                departmentId: d.id,
-                invites: invites.map((i) => mapInviteDto(i, apiTenantId)),
-                employees: employees.map(mapEmployeeDto),
-              })),
             ),
           ),
-        ).pipe(
-          map((chunks) => {
-            const inviteLinks: InviteLink[] = [];
-            const departmentsFull: Department[] = shells.map((shell) => {
-              const chunk = chunks.find((c) => c.departmentId === shell.id)!;
-              inviteLinks.push(...chunk.invites);
-              return {
-                ...shell,
-                employees: chunk.employees,
-              };
-            });
+        }).pipe(
+          map(({ inviteChunks }) => {
+            const inviteLinks: InviteLink[] = inviteChunks.flatMap(
+              (c) => c.invites,
+            );
             return buildTenantFromParts(
               tenantDto,
-              departmentsFull,
+              shells,
               inviteLinks,
               groupAssignmentsToDistributions(assignments),
             );
@@ -381,13 +374,14 @@ export class TenantsStore {
       })
       .pipe(
         switchMap(() => this.hydrateTenant$(tenantId)),
-        tap(() =>
+        tap(() => {
           this.messages.add({
             severity: 'success',
             summary: 'Person added',
             detail: email.trim(),
-          }),
-        ),
+          });
+          this.tenantPeopleDirectoryRevision.update((n) => n + 1);
+        }),
         map(() => void 0),
         catchError((err) => {
           this.messages.add({

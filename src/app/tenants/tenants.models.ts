@@ -12,6 +12,8 @@ export interface Department {
   id: string;
   name: string;
   employees: TenantEmployee[];
+  /** Active (non-deleted) people; mirrors API `employeeCount`. */
+  employeeCount: number;
 }
 
 export type ProvisionSource = 'silent' | 'invite';

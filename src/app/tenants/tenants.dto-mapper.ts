@@ -1,13 +1,11 @@
 import type { AssignmentListItemResponseDto } from '@/app/core/api/models/assignment.dto';
 import type { DepartmentResponseDto } from '@/app/core/api/models/department.dto';
 import type { InviteCodeListItemResponseDto } from '@/app/core/api/models/invite-code.dto';
-import type { TenantEmployeeResponseDto } from '@/app/core/api/models/tenant-employee.dto';
 import type { TenantResponseDto } from '@/app/core/api/models/tenant.dto';
 import type {
   Department,
   InviteLink,
   Tenant,
-  TenantEmployee,
   TenantTestDistribution,
 } from './tenants.models';
 
@@ -16,6 +14,11 @@ function str(v: unknown): string {
     return '';
   }
   return String(v);
+}
+
+function num(v: unknown, fallback = 0): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
 }
 
 /** Supports camelCase or PascalCase and numeric ids from JSON. */
@@ -37,10 +40,16 @@ export function normalizeDepartmentResponseDto(
   raw: DepartmentResponseDto,
 ): DepartmentResponseDto {
   const r = raw as unknown as Record<string, unknown>;
+  const createdRaw = r['created'] ?? r['Created'];
   return {
     id: str(r['id'] ?? r['Id']),
     tenantId: str(r['tenantId'] ?? r['TenantId']),
     name: str(r['name'] ?? r['Name']),
+    employeeCount: num(r['employeeCount'] ?? r['EmployeeCount'], 0),
+    created:
+      createdRaw == null || createdRaw === ''
+        ? undefined
+        : str(createdRaw),
   };
 }
 
@@ -50,20 +59,7 @@ export function mapDepartmentShell(d: DepartmentResponseDto): Department {
     id: n.id,
     name: n.name,
     employees: [],
-  };
-}
-
-export function mapEmployeeDto(e: TenantEmployeeResponseDto): TenantEmployee {
-  const er = e as unknown as Record<string, unknown>;
-  const source = e.provisionSource ?? 'silent';
-  return {
-    id: str(er['id'] ?? er['Id']),
-    name: str(er['fullName'] ?? er['FullName']),
-    email: str(er['email'] ?? er['Email']),
-    isActive: e.isActive ?? true,
-    provisionSource: source === 'invite' ? 'invite' : 'silent',
-    invitedViaLinkId: e.invitedViaInviteCodeId ?? null,
-    createdAt: e.createdAt ?? '',
+    employeeCount: n.employeeCount,
   };
 }
 

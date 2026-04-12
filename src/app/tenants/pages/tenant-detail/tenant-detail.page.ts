@@ -23,9 +23,9 @@ import {
   Department,
   InviteLink,
   Tenant,
-  TenantEmployee,
   TenantTestDistribution,
 } from '@/app/tenants/tenants.models';
+import { TenantPeopleTableComponent } from '@/app/tenants/components/tenant-people-table/tenant-people-table.component';
 import { TenantsStore } from '@/app/tenants/tenants.store';
 
 @Component({
@@ -47,6 +47,7 @@ import { TenantsStore } from '@/app/tenants/tenants.store';
     TagModule,
     ConfirmDialogModule,
     ProgressSpinnerModule,
+    TenantPeopleTableComponent,
   ],
   templateUrl: './tenant-detail.page.html',
   providers: [ConfirmationService],
@@ -198,6 +199,16 @@ export class TenantDetailPage {
 
   departmentOptions(tenant: Tenant): { label: string; value: string }[] {
     return tenant.departments.map((d) => ({ label: d.name, value: d.id }));
+  }
+
+  /** Labels for the tenant people table department filter (ids as strings). */
+  peopleDepartmentFilterRows(
+    tenant: Tenant,
+  ): { id: string; name: string }[] {
+    return tenant.departments.map((d) => ({
+      id: String(d.id),
+      name: d.name,
+    }));
   }
 
   submitSilentProvision(): void {
@@ -389,15 +400,5 @@ export class TenantDetailPage {
     return row.assignedDepartmentIds
       .map((id) => this.departmentLabel(tenant, id))
       .join(', ');
-  }
-
-  employeesFlat(tenant: Tenant): { departmentName: string; employee: TenantEmployee }[] {
-    const rows: { departmentName: string; employee: TenantEmployee }[] = [];
-    for (const d of tenant.departments) {
-      for (const e of d.employees) {
-        rows.push({ departmentName: d.name, employee: e });
-      }
-    }
-    return rows;
   }
 }

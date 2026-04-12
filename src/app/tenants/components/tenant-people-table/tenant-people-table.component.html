@@ -1,0 +1,71 @@
+<div class="flex min-w-0 flex-col gap-4">
+    <div
+        class="flex min-w-0 flex-col gap-3 border-bottom-1 surface-border pb-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+    >
+        <h3 class="m-0 shrink-0 text-lg font-semibold text-color tracking-tight">People</h3>
+        <div class="flex min-w-0 w-full flex-col gap-2 sm:w-auto sm:max-w-[17rem] sm:shrink-0">
+            <label for="tenantPeopleDeptFilter" class="m-0 font-medium text-sm text-muted-color">Department</label>
+            <p-select
+                inputId="tenantPeopleDeptFilter"
+                [options]="departmentFilterOptions()"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="All departments"
+                styleClass="w-full"
+                fluid
+                appendTo="body"
+                [ngModel]="departmentFilter()"
+                (ngModelChange)="onDepartmentFilterChange($event)"
+            ></p-select>
+        </div>
+    </div>
+
+    <div class="min-w-0 overflow-x-auto rounded-lg border-1 surface-border">
+        <p-table
+            [value]="items()"
+            dataKey="id"
+            [rowHover]="true"
+            [stripedRows]="true"
+            [lazy]="true"
+            (onLazyLoad)="onLazyLoad($event)"
+            [loading]="loading()"
+            [paginator]="true"
+            [rows]="pageRows()"
+            [rowsPerPageOptions]="[10, 25, 50]"
+            [totalRecords]="totalRecords()"
+            [first]="pageFirst()"
+            [showCurrentPageReport]="true"
+            currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entries"
+            [tableStyle]="{ 'min-width': '42rem' }"
+            styleClass="w-full min-w-0 p-datatable-sm"
+        >
+            <ng-template #header>
+                <tr>
+                    <th class="font-semibold" style="min-width: 10rem">Department</th>
+                    <th class="font-semibold" style="min-width: 12rem">Name</th>
+                    <th class="font-semibold" style="min-width: 14rem">Email</th>
+                    <th class="font-semibold" style="min-width: 12rem">Created</th>
+                </tr>
+            </ng-template>
+            <ng-template #body let-row>
+                <tr>
+                    <td>{{ row.departmentName }}</td>
+                    <td class="font-medium">{{ row.fullName }}</td>
+                    <td class="text-sm">{{ row.email }}</td>
+                    <td class="text-sm text-muted-color">
+                        @if (row.created) {
+                            {{ row.created | date: 'medium' }}
+                        } @else {
+                            —
+                        }
+                    </td>
+                </tr>
+            </ng-template>
+            <ng-template #emptymessage>
+                <tr>
+                    <td colspan="4" class="py-6 text-center text-muted-color">No people in this tenant yet.</td>
+                </tr>
+            </ng-template>
+        </p-table>
+    </div>
+</div>

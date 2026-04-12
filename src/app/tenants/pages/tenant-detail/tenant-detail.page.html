@@ -59,7 +59,7 @@
                             <ng-template #body let-dept>
                                 <tr>
                                     <td class="font-medium">{{ dept.name }}</td>
-                                    <td>{{ dept.employees.length }}</td>
+                                    <td>{{ dept.employeeCount }}</td>
                                     <td>
                                         <p-button icon="pi pi-pencil" class="mr-2" [rounded]="true" [outlined]="true" (onClick)="openEditDepartment(dept)" />
                                         <p-button icon="pi pi-trash" severity="danger" [rounded]="true" [outlined]="true" (onClick)="confirmDeleteDepartment(dept)" />
@@ -124,39 +124,6 @@
                                             />
                                             <span class="text-muted-color text-sm">Client is created active immediately. No invitation email is sent.</span>
                                         </div>
-                                        <div class="font-semibold">People in this tenant</div>
-                                        <p-table [value]="employeesFlat(t)" dataKey="employee.id" [tableStyle]="{ 'min-width': '36rem' }">
-                                            <ng-template #header>
-                                                <tr>
-                                                    <th>Department</th>
-                                                    <th>Name</th>
-                                                    <th>Email</th>
-                                                    <th>Source</th>
-                                                    <th>Status</th>
-                                                </tr>
-                                            </ng-template>
-                                            <ng-template #body let-row>
-                                                <tr>
-                                                    <td>{{ row.departmentName }}</td>
-                                                    <td>{{ row.employee.name }}</td>
-                                                    <td>{{ row.employee.email }}</td>
-                                                    <td>
-                                                        <p-tag
-                                                            [value]="row.employee.provisionSource === 'silent' ? 'Silent' : 'Invite'"
-                                                            [severity]="row.employee.provisionSource === 'silent' ? 'info' : 'success'"
-                                                        />
-                                                    </td>
-                                                    <td>
-                                                        <p-tag [value]="row.employee.isActive ? 'Active' : 'Inactive'" [severity]="row.employee.isActive ? 'success' : 'secondary'" />
-                                                    </td>
-                                                </tr>
-                                            </ng-template>
-                                            <ng-template #emptymessage>
-                                                <tr>
-                                                    <td colspan="5" class="text-center text-muted-color py-4">No employees yet.</td>
-                                                </tr>
-                                            </ng-template>
-                                        </p-table>
                                     </div>
                                 </p-tabpanel>
                                 <p-tabpanel value="1">
@@ -258,6 +225,14 @@
                 </p-tabpanel>
             </p-tabpanels>
         </p-tabs>
+
+        <div class="card min-w-0 overflow-hidden">
+            <app-tenant-people-table
+                [tenantId]="t.id"
+                [departments]="peopleDepartmentFilterRows(t)"
+                [directoryRevision]="store.tenantPeopleDirectoryRevision()"
+            />
+        </div>
     </div>
 
     <p-dialog [(visible)]="deptDialogVisible" [style]="{ width: '400px' }" [header]="deptEditId ? 'Edit department' : 'New department'" [modal]="true">
