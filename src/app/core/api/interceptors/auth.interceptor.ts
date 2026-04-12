@@ -3,7 +3,9 @@ import {
   HttpInterceptorFn,
 } from '@angular/common/http';
 import { inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { catchError, switchMap, throwError } from 'rxjs';
+import { sanitizeReturnUrl } from '@/app/core/auth/sanitize-return-url';
 import { API_URL } from '../tokens/api-url.token';
 import { AuthHttpRefreshService } from '../services/auth-http-refresh.service';
 import { TokenStorageService } from '../services/token-storage.service';
@@ -38,6 +40,19 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const apiUrl = inject(API_URL);
   const tokens = inject(TokenStorageService);
   const refresh = inject(AuthHttpRefreshService);
+  const router = inject(Router);
+
+  const navigateToLogin = (): void => {
+    const path = router.url.split('?')[0] ?? '/';
+    if (path === '/login' || path.startsWith('/login/')) {
+      return;
+    }
+    const returnUrl = sanitizeReturnUrl(router.url);
+    void router.navigate(['/login'], {
+      queryParams: returnUrl ? { returnUrl } : {},
+      replaceUrl: true,
+    });
+  };
 
   const isPublic = isPublicApiUrl(req.url, apiUrl);
   const access = tokens.getAccessToken();
@@ -58,12 +73,14 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       }
       if (req.headers.get(AUTH_RETRY_HEADER) === '1') {
         tokens.clear();
+        navigateToLogin();
         return throwError(() => err);
       }
       return refresh.refreshTokens().pipe(
         switchMap(() => {
           const nextAccess = tokens.getAccessToken();
           if (!nextAccess) {
+            navigateToLogin();
             return throwError(() => err);
           }
           const retryReq = req.clone({
@@ -74,7 +91,10 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
           });
           return next(retryReq);
         }),
-        catchError((e) => throwError(() => e)),
+        catchError((e) => {
+          navigateToLogin();
+          return throwError(() => e);
+        }),
       );
     }),
   );
