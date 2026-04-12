@@ -1,0 +1,108 @@
+@if (assignment(); as a) {
+    <div class="flex flex-col gap-4">
+        <div class="card border-round-2xl overflow-hidden p-0 border-1 surface-border surface-50 dark:surface-900 shadow-1">
+            <div class="relative px-4 py-6 md:px-6 md:py-8">
+                <div class="flex justify-center md:justify-start md:absolute md:left-5 md:top-5 z-1 mb-4 md:mb-0">
+                    <p-button
+                        label="Assignments"
+                        icon="pi pi-arrow-left"
+                        severity="secondary"
+                        [outlined]="true"
+                        [rounded]="true"
+                        styleClass="font-semibold"
+                        (onClick)="goBack()"
+                    />
+                </div>
+                <div class="flex flex-col items-center text-center gap-3 max-w-52rem mx-auto px-2 md:px-14 pt-1 md:pt-0">
+                    <span
+                        class="inline-flex items-center justify-center px-3 py-1 border-round-md text-xs font-bold uppercase tracking-wide text-primary surface-ground border-1 border-primary"
+                    >
+                        Assignment detail
+                    </span>
+                    <h2 class="m-0 font-bold text-3xl md:text-4xl text-color leading-tight">{{ a.testTitle }}</h2>
+                    <p class="m-0 text-muted-color text-base max-w-40rem line-height-3">
+                        <span class="font-semibold text-color">{{ a.tenantName }}</span>
+                        ·
+                        {{ a.departmentScopeLabel }}
+                    </p>
+                    <div class="flex flex-wrap items-center justify-center gap-2 mt-2">
+                        <p-tag [value]="a.lifecycleStatus" [severity]="lifecycleSeverity(a.lifecycleStatus)" />
+                        <p-tag
+                            [value]="store.rollupStatusLabel(store.rollupStatus(a))"
+                            [severity]="rollupSeverity(store.rollupStatus(a))"
+                        />
+                        <p-tag
+                            [value]="'Opened ' + store.counts(a).opened + '/' + store.counts(a).total"
+                            severity="secondary"
+                        />
+                        <p-tag
+                            [value]="'Completed ' + store.counts(a).completed + '/' + store.counts(a).total"
+                            [severity]="store.counts(a).completed === store.counts(a).total && store.counts(a).total > 0 ? 'success' : 'secondary'"
+                        />
+                    </div>
+                    <p class="m-0 text-xs text-muted-color max-w-36rem">
+                        “Opened” is first access to the assignment; “Completed” is submission. Results appear when recorded for each tenant employee.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card flex flex-col gap-4">
+            <div class="font-semibold text-xl">Tenant employees &amp; results</div>
+            <p-table [value]="a.participants" dataKey="tenantEmployeeId" [rowHover]="true" [tableStyle]="{ 'min-width': '48rem' }">
+                <ng-template #header>
+                    <tr>
+                        <th style="min-width: 11rem">Name</th>
+                        <th style="min-width: 12rem">Email</th>
+                        <th style="min-width: 10rem">Opened</th>
+                        <th style="min-width: 10rem">Completed</th>
+                        <th style="min-width: 12rem">Result</th>
+                        <th style="min-width: 8rem">Status</th>
+                    </tr>
+                </ng-template>
+                <ng-template #body let-p>
+                    <tr>
+                        <td class="font-medium">{{ p.displayName }}</td>
+                        <td class="text-sm">{{ p.email }}</td>
+                        <td class="text-sm text-muted-color">
+                            @if (p.openedAt) {
+                                {{ p.openedAt | date: 'medium' }}
+                            } @else {
+                                <span class="text-muted-color">—</span>
+                            }
+                        </td>
+                        <td class="text-sm text-muted-color">
+                            @if (p.completedAt) {
+                                {{ p.completedAt | date: 'medium' }}
+                            } @else {
+                                <span class="text-muted-color">—</span>
+                            }
+                        </td>
+                        <td>
+                            @if (p.resultLabel) {
+                                <span class="font-medium">{{ p.resultLabel }}</span>
+                            } @else {
+                                <span class="text-muted-color">—</span>
+                            }
+                        </td>
+                        <td>
+                            <p-tag [value]="participantStatusLabel(p)" [severity]="participantSeverity(p)" />
+                        </td>
+                    </tr>
+                </ng-template>
+                <ng-template #emptymessage>
+                    <tr>
+                        <td colspan="6" class="text-center text-muted-color py-6">No participants on this assignment.</td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </div>
+    </div>
+} @else {
+    <div class="card flex flex-col gap-4 items-center text-center py-8">
+        <i class="pi pi-inbox text-4xl text-muted-color"></i>
+        <h4 class="m-0 font-semibold text-xl">Assignment not found</h4>
+        <p class="m-0 text-muted-color max-w-28rem">This assignment may have been removed or the link is invalid.</p>
+        <p-button label="Back to assignments" icon="pi pi-arrow-left" (onClick)="goBack()" />
+    </div>
+}
