@@ -10,3 +10,13 @@ export interface AssignmentCreateResponseDto {
   created: number;
   skipped: number;
 }
+
+/** GET /api/Assignments?tenantId= */
+export interface AssignmentListItemResponseDto {
+  id: string;
+  tenantId: string;
+  departmentId: string;
+  testId: string;
+  testTitle?: string | null;
+  createdAt?: string | null;
+}

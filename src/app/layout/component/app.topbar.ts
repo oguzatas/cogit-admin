@@ -5,7 +5,6 @@ import { CommonModule } from '@angular/common';
 import { StyleClassModule } from 'primeng/styleclass';
 import { ButtonModule } from 'primeng/button';
 import { Popover, PopoverModule } from 'primeng/popover';
-import { AvatarModule } from 'primeng/avatar';
 import { AppConfigurator } from './app.configurator';
 import { LayoutService } from '@/app/layout/service/layout.service';
 import { AuthService } from '@/app/core/api/services/auth.service';
@@ -21,7 +20,6 @@ import { AuthIdentityService } from '@/app/core/api/services/auth-identity.servi
     AppConfigurator,
     ButtonModule,
     PopoverModule,
-    AvatarModule,
   ],
   template: ` <div class="layout-topbar">
     <div class="layout-topbar-logo-container">
@@ -89,13 +87,15 @@ import { AuthIdentityService } from '@/app/core/api/services/auth-identity.servi
         </div>
       </div>
 
-      <p-avatar
-        [label]="avatarLabel()"
-        shape="circle"
-        styleClass="cursor-pointer shrink-0"
+      <button
+        type="button"
+        class="layout-topbar-action layout-topbar-action-highlight shrink-0 rounded-full w-10 h-10 inline-flex items-center justify-center font-semibold text-sm"
         (click)="profilePopover.toggle($event)"
-        [attr.aria-label]="'Account menu'"
-      />
+        aria-label="Account menu"
+        [attr.title]="identity.email() ?? 'Account'"
+      >
+        {{ avatarLabel() }}
+      </button>
 
       <p-popover #profilePopover [style]="{ width: 'min(20rem, 92vw)' }">
         <div class="flex flex-col gap-4 p-1">
@@ -138,7 +138,8 @@ export class AppTopbar {
     if (parts.length >= 2) {
       return (parts[0]![0]! + parts[1]![0]!).toUpperCase();
     }
-    return local.slice(0, 2).toUpperCase() || '?';
+    const two = local.slice(0, 2).toUpperCase();
+    return two.length > 0 ? two : '?';
   });
 
   constructor() {

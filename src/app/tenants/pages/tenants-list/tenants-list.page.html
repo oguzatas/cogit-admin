@@ -26,7 +26,12 @@
         </div>
     </div>
 
-    <div class="card">
+    <div class="card relative">
+        @if (store.listLoading()) {
+            <div class="absolute inset-0 z-2 flex items-center justify-center bg-surface-0/70 dark:bg-surface-900/70 border-round">
+                <p-progress-spinner strokeWidth="4" styleClass="w-12 h-12" />
+            </div>
+        }
         <div class="font-semibold text-lg mb-4">All organisations</div>
         <p-table [value]="store.tenants()" [rowHover]="true" dataKey="id" [tableStyle]="{ 'min-width': '50rem' }">
             <ng-template #header>
@@ -79,7 +84,13 @@
     </ng-template>
     <ng-template #footer>
         <p-button label="Cancel" icon="pi pi-times" text (onClick)="hideTenantDialog()" />
-        <p-button label="Save" icon="pi pi-check" (onClick)="saveTenant()" [disabled]="!dialogName.trim()" />
+        <p-button
+            label="Save"
+            icon="pi pi-check"
+            (onClick)="saveTenant()"
+            [disabled]="!dialogName.trim() || savePending"
+            [loading]="savePending"
+        />
     </ng-template>
 </p-dialog>
 

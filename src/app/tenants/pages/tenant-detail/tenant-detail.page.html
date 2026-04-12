@@ -1,5 +1,13 @@
 @if (tenant(); as t) {
-    <div class="flex flex-col gap-4">
+    <div class="flex flex-col gap-4 relative">
+        @if (store.detailLoading()) {
+            <div
+                class="absolute inset-0 z-3 flex items-center justify-center bg-surface-0/60 dark:bg-surface-900/60 border-round-2xl"
+                style="min-height: 12rem"
+            >
+                <p-progress-spinner strokeWidth="4" styleClass="w-12 h-12" />
+            </div>
+        }
         <div class="card border-round-2xl overflow-hidden p-0 border-1 surface-border surface-50 dark:surface-900 shadow-1">
             <div class="relative px-4 py-6 md:px-6 md:py-8">
                 <div class="flex justify-center md:justify-start md:absolute md:left-5 md:top-5 z-1 mb-4 md:mb-0">
@@ -111,7 +119,8 @@
                                                 label="Add client"
                                                 icon="pi pi-user-plus"
                                                 (onClick)="submitSilentProvision()"
-                                                [disabled]="!silentDepartmentId || !silentName.trim() || !silentEmail.trim()"
+                                                [disabled]="!silentDepartmentId || !silentName.trim() || !silentEmail.trim() || silentPending"
+                                                [loading]="silentPending"
                                             />
                                             <span class="text-muted-color text-sm">Client is created active immediately. No invitation email is sent.</span>
                                         </div>
@@ -211,7 +220,7 @@
                         <div class="flex flex-wrap items-center justify-between gap-3">
                             <div>
                                 <div class="font-semibold text-xl">Test distribution</div>
-                                <p class="m-0 mt-2 text-muted-color text-sm">Assign assessments (placeholder title) to one or more departments.</p>
+                                <p class="m-0 mt-2 text-muted-color text-sm">Assign a published assessment to one or more departments.</p>
                             </div>
                             <p-button label="New assignment" icon="pi pi-send" severity="secondary" (onClick)="openDistDialog()" />
                         </div>
@@ -228,7 +237,14 @@
                                     <td class="font-medium">{{ row.testTitle }}</td>
                                     <td class="text-sm">{{ distributionDeptLabels(t, row) }}</td>
                                     <td>
-                                        <p-button icon="pi pi-trash" severity="danger" [rounded]="true" [outlined]="true" (onClick)="confirmRemoveDistribution(row)" />
+                                        <p-button
+                                            icon="pi pi-trash"
+                                            severity="danger"
+                                            [rounded]="true"
+                                            [outlined]="true"
+                                            [disabled]="!row.assignmentIds?.length"
+                                            (onClick)="confirmRemoveDistribution(row)"
+                                        />
                                     </td>
                                 </tr>
                             </ng-template>
@@ -255,7 +271,13 @@
         </ng-template>
         <ng-template #footer>
             <p-button label="Cancel" text (onClick)="hideDeptDialog()" />
-            <p-button label="Save" icon="pi pi-check" (onClick)="saveDepartment()" [disabled]="!deptName.trim()" />
+            <p-button
+                label="Save"
+                icon="pi pi-check"
+                (onClick)="saveDepartment()"
+                [disabled]="!deptName.trim() || deptSavePending"
+                [loading]="deptSavePending"
+            />
         </ng-template>
     </p-dialog>
 
@@ -291,7 +313,13 @@
         </ng-template>
         <ng-template #footer>
             <p-button label="Cancel" text (onClick)="hideInviteDialog()" />
-            <p-button label="Create" icon="pi pi-check" (onClick)="createInvite()" [disabled]="!inviteDepartmentId" />
+            <p-button
+                label="Create"
+                icon="pi pi-check"
+                (onClick)="createInvite()"
+                [disabled]="!inviteDepartmentId || inviteCreatePending"
+                [loading]="inviteCreatePending"
+            />
         </ng-template>
     </p-dialog>
 
@@ -299,8 +327,21 @@
         <ng-template #content>
             <div class="flex flex-col gap-4">
                 <div class="flex flex-col gap-2">
-                    <label for="distTitle" class="font-semibold">Assessment title</label>
-                    <input id="distTitle" pInputText [(ngModel)]="distTitle" fluid placeholder="e.g. Annual safety check" />
+                    <label for="distTest" class="font-semibold">Assessment</label>
+                    <p-select
+                        inputId="distTest"
+                        [(ngModel)]="distTestId"
+                        [options]="testOptions()"
+                        optionLabel="label"
+                        optionValue="value"
+                        placeholder="Select test"
+                        class="w-full"
+                        fluid
+                        appendTo="body"
+                    ></p-select>
+                    @if (!testsLoading() && testOptions().length === 0) {
+                        <p class="m-0 text-xs text-muted-color">No tests returned from the API. Create tests in Test builder first.</p>
+                    }
                 </div>
                 <div class="flex flex-col gap-2">
                     <label for="distDepts" class="font-semibold">Departments</label>
@@ -321,7 +362,13 @@
         </ng-template>
         <ng-template #footer>
             <p-button label="Cancel" text (onClick)="hideDistDialog()" />
-            <p-button label="Save" icon="pi pi-check" (onClick)="saveDistribution()" [disabled]="!distTitle.trim() || distDepartmentIds.length === 0" />
+            <p-button
+                label="Save"
+                icon="pi pi-check"
+                (onClick)="saveDistribution()"
+                [disabled]="!distTestId || distDepartmentIds.length === 0 || distSavePending"
+                [loading]="distSavePending"
+            />
         </ng-template>
     </p-dialog>
 } @else {

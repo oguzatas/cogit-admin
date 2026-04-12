@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, effect, inject } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { map } from 'rxjs/operators';
+import { of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 import { ConfirmationService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
@@ -11,11 +12,13 @@ import { DialogModule } from 'primeng/dialog';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
 import { MultiSelectModule } from 'primeng/multiselect';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { RippleModule } from 'primeng/ripple';
 import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
 import { TabsModule } from 'primeng/tabs';
 import { TagModule } from 'primeng/tag';
+import { TestService } from '@/app/core/api/services/test.service';
 import {
   Department,
   InviteLink,
@@ -43,6 +46,7 @@ import { TenantsStore } from '@/app/tenants/tenants.store';
     MultiSelectModule,
     TagModule,
     ConfirmDialogModule,
+    ProgressSpinnerModule,
   ],
   templateUrl: './tenant-detail.page.html',
   providers: [ConfirmationService],
@@ -52,6 +56,7 @@ export class TenantDetailPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly confirmation = inject(ConfirmationService);
+  private readonly testsApi = inject(TestService);
 
   readonly routeTenantId = toSignal(
     this.route.paramMap.pipe(map((p) => p.get('tenantId'))),
@@ -66,39 +71,48 @@ export class TenantDetailPage {
     return this.store.tenants().find((t) => t.id === id) ?? null;
   });
 
-  /** Main configuration tabs */
+  readonly testOptions = signal<{ label: string; value: string }[]>([]);
+  readonly testsLoading = signal(false);
+
   mainTab = '0';
-  /** Nested onboarding: silent vs invite */
   onboardTab = '0';
 
   deptDialogVisible = false;
   deptEditId: string | null = null;
   deptName = '';
+  deptSavePending = false;
 
   silentDepartmentId = '';
   silentName = '';
   silentEmail = '';
+  silentPending = false;
 
   inviteDialogVisible = false;
   inviteDepartmentId = '';
   inviteMaxUses = 60;
-  /** Whole hours until absolute expiry. */
   inviteValidHours = 1;
+  inviteCreatePending = false;
 
   distDialogVisible = false;
-  distTitle = '';
+  distTestId = '';
   distDepartmentIds: string[] = [];
+  distSavePending = false;
 
   constructor() {
-    effect(() => {
+    effect((onCleanup) => {
       const id = this.routeTenantId();
       this.store.selectTenant(id);
+      if (!id) {
+        return;
+      }
+      const sub = this.store.hydrateTenant$(id).subscribe({ error: () => {} });
+      onCleanup(() => sub.unsubscribe());
     });
   }
 
   goBack(): void {
     this.store.selectTenant(null);
-    this.router.navigate(['/tenants']);
+    void this.router.navigate(['/tenants']);
   }
 
   onMainTabChange(value: string | number | undefined): void {
@@ -128,19 +142,37 @@ export class TenantDetailPage {
 
   saveDepartment(): void {
     const t = this.tenant();
-    if (!t) {
+    if (!t || this.deptSavePending) {
       return;
     }
     const name = this.deptName.trim();
     if (!name) {
       return;
     }
+    this.deptSavePending = true;
     if (this.deptEditId) {
-      this.store.updateDepartment(t.id, this.deptEditId, name);
+      this.store
+        .updateDepartment$(t.id, this.deptEditId, name)
+        .subscribe({
+          next: () => {
+            this.deptSavePending = false;
+            this.hideDeptDialog();
+          },
+          error: () => {
+            this.deptSavePending = false;
+          },
+        });
     } else {
-      this.store.addDepartment(t.id, name);
+      this.store.addDepartment$(t.id, name).subscribe({
+        next: () => {
+          this.deptSavePending = false;
+          this.hideDeptDialog();
+        },
+        error: () => {
+          this.deptSavePending = false;
+        },
+      });
     }
-    this.hideDeptDialog();
   }
 
   confirmDeleteDepartment(dept: Department): void {
@@ -150,12 +182,14 @@ export class TenantDetailPage {
     }
     this.confirmation.confirm({
       header: 'Delete department',
-      message: `Delete "${dept.name}"? Employees in this department will be removed. Invite links and distribution rows targeting it will be cleaned up.`,
+      message: `Delete "${dept.name}"?`,
       icon: 'pi pi-exclamation-triangle',
       acceptLabel: 'Delete',
       rejectLabel: 'Cancel',
       acceptButtonStyleClass: 'p-button-danger',
-      accept: () => this.store.deleteDepartment(t.id, dept.id),
+      accept: () => {
+        this.store.deleteDepartment$(t.id, dept.id).subscribe();
+      },
     });
   }
 
@@ -165,17 +199,27 @@ export class TenantDetailPage {
 
   submitSilentProvision(): void {
     const t = this.tenant();
-    if (!t || !this.silentDepartmentId) {
+    if (!t || !this.silentDepartmentId || this.silentPending) {
       return;
     }
-    this.store.provisionEmployeeSilent(
-      t.id,
-      this.silentDepartmentId,
-      this.silentName,
-      this.silentEmail,
-    );
-    this.silentName = '';
-    this.silentEmail = '';
+    this.silentPending = true;
+    this.store
+      .provisionEmployeeSilent$(
+        t.id,
+        this.silentDepartmentId,
+        this.silentName,
+        this.silentEmail,
+      )
+      .subscribe({
+        next: () => {
+          this.silentPending = false;
+          this.silentName = '';
+          this.silentEmail = '';
+        },
+        error: () => {
+          this.silentPending = false;
+        },
+      });
   }
 
   openInviteDialog(): void {
@@ -192,16 +236,26 @@ export class TenantDetailPage {
 
   createInvite(): void {
     const t = this.tenant();
-    if (!t || !this.inviteDepartmentId) {
+    if (!t || !this.inviteDepartmentId || this.inviteCreatePending) {
       return;
     }
-    this.store.createInviteLink(
-      t.id,
-      this.inviteDepartmentId,
-      this.inviteMaxUses,
-      this.inviteValidHours,
-    );
-    this.hideInviteDialog();
+    this.inviteCreatePending = true;
+    this.store
+      .createInviteLink$(
+        t.id,
+        this.inviteDepartmentId,
+        this.inviteMaxUses,
+        this.inviteValidHours,
+      )
+      .subscribe({
+        next: () => {
+          this.inviteCreatePending = false;
+          this.hideInviteDialog();
+        },
+        error: () => {
+          this.inviteCreatePending = false;
+        },
+      });
   }
 
   confirmRevokeInvite(link: InviteLink): void {
@@ -216,14 +270,36 @@ export class TenantDetailPage {
       acceptLabel: 'Revoke',
       rejectLabel: 'Cancel',
       acceptButtonStyleClass: 'p-button-danger',
-      accept: () => this.store.revokeInviteLink(t.id, link.id),
+      accept: () => {
+        this.store.revokeInviteLink$(t.id, link.id).subscribe();
+      },
     });
   }
 
+  private loadTestCatalog(): void {
+    this.testsLoading.set(true);
+    this.testsApi
+      .list()
+      .pipe(
+        catchError(() => of([])),
+        map((rows) =>
+          rows.map((r) => ({ label: r.title, value: r.id })),
+        ),
+      )
+      .subscribe({
+        next: (opts) => {
+          this.testOptions.set(opts);
+          this.testsLoading.set(false);
+        },
+        error: () => this.testsLoading.set(false),
+      });
+  }
+
   openDistDialog(): void {
-    this.distTitle = '';
+    this.distTestId = '';
     this.distDepartmentIds = [];
     this.distDialogVisible = true;
+    this.loadTestCatalog();
   }
 
   hideDistDialog(): void {
@@ -232,14 +308,21 @@ export class TenantDetailPage {
 
   saveDistribution(): void {
     const t = this.tenant();
-    if (!t) {
+    if (!t || !this.distTestId || this.distDepartmentIds.length === 0 || this.distSavePending) {
       return;
     }
-    this.store.addTestDistribution(t.id, {
-      testTitle: this.distTitle,
-      departmentIds: this.distDepartmentIds,
-    });
-    this.hideDistDialog();
+    this.distSavePending = true;
+    this.store
+      .distributeTest$(t.id, this.distTestId, this.distDepartmentIds)
+      .subscribe({
+        next: () => {
+          this.distSavePending = false;
+          this.hideDistDialog();
+        },
+        error: () => {
+          this.distSavePending = false;
+        },
+      });
   }
 
   confirmRemoveDistribution(row: TenantTestDistribution): void {
@@ -247,14 +330,19 @@ export class TenantDetailPage {
     if (!t) {
       return;
     }
+    if (!row.assignmentIds?.length) {
+      return;
+    }
     this.confirmation.confirm({
-      header: 'Remove distribution',
-      message: `Remove assignment "${row.testTitle}"?`,
+      header: 'Remove assignment',
+      message: `Remove "${row.testTitle}" from the selected departments?`,
       icon: 'pi pi-trash',
       acceptLabel: 'Remove',
       rejectLabel: 'Cancel',
       acceptButtonStyleClass: 'p-button-danger',
-      accept: () => this.store.removeTestDistribution(t.id, row.id),
+      accept: () => {
+        this.store.removeTestDistribution$(t.id, row).subscribe();
+      },
     });
   }
 

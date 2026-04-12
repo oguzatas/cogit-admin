@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { ConfirmationService } from 'primeng/api';
@@ -7,6 +7,7 @@ import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { RippleModule } from 'primeng/ripple';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -29,11 +30,12 @@ import { TenantsStore } from '@/app/tenants/tenants.store';
     TextareaModule,
     TagModule,
     ConfirmDialogModule,
+    ProgressSpinnerModule,
   ],
   templateUrl: './tenants-list.page.html',
   providers: [ConfirmationService],
 })
-export class TenantsListPage {
+export class TenantsListPage implements OnInit {
   readonly store = inject(TenantsStore);
   private readonly router = inject(Router);
   private readonly confirmation = inject(ConfirmationService);
@@ -42,6 +44,11 @@ export class TenantsListPage {
   dialogTenantId: string | null = null;
   dialogName = '';
   dialogDescription = '';
+  savePending = false;
+
+  ngOnInit(): void {
+    this.store.refreshTenantList();
+  }
 
   openNew(): void {
     this.dialogTenantId = null;
@@ -63,39 +70,56 @@ export class TenantsListPage {
 
   saveTenant(): void {
     const name = this.dialogName.trim();
-    if (!name) {
+    if (!name || this.savePending) {
       return;
     }
+    this.savePending = true;
     if (this.dialogTenantId) {
-      this.store.updateTenant(this.dialogTenantId, {
-        name,
-        description: this.dialogDescription,
-      });
+      this.store
+        .updateTenant$(this.dialogTenantId, {
+          name,
+          description: this.dialogDescription,
+        })
+        .subscribe({
+          next: () => {
+            this.savePending = false;
+            this.hideTenantDialog();
+          },
+          error: () => {
+            this.savePending = false;
+          },
+        });
     } else {
-      const id = this.store.createTenant({
-        name,
-        description: this.dialogDescription,
+      this.store.createTenant$({ name, description: this.dialogDescription }).subscribe({
+        next: (id) => {
+          this.savePending = false;
+          this.store.selectTenant(id);
+          void this.router.navigate(['/tenants', id]);
+          this.hideTenantDialog();
+        },
+        error: () => {
+          this.savePending = false;
+        },
       });
-      this.store.selectTenant(id);
-      this.router.navigate(['/tenants', id]);
     }
-    this.hideTenantDialog();
   }
 
   openTenantDetail(tenant: Tenant): void {
     this.store.selectTenant(tenant.id);
-    this.router.navigate(['/tenants', tenant.id]);
+    void this.router.navigate(['/tenants', tenant.id]);
   }
 
   confirmDeleteTenant(tenant: Tenant): void {
     this.confirmation.confirm({
       header: 'Delete tenant',
-      message: `Delete "${tenant.name}" and all of its departments, employees, invites, and distributions? This cannot be undone.`,
+      message: `Delete "${tenant.name}"? This removes the tenant in the API; related data may be removed depending on backend rules.`,
       icon: 'pi pi-exclamation-triangle',
       acceptLabel: 'Delete',
       rejectLabel: 'Cancel',
       acceptButtonStyleClass: 'p-button-danger',
-      accept: () => this.store.deleteTenant(tenant.id),
+      accept: () => {
+        this.store.deleteTenant$(tenant.id).subscribe();
+      },
     });
   }
 

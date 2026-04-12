@@ -44,10 +44,14 @@ export interface InviteLink {
   isRevoked: boolean;
 }
 
-/** Assigns an assessment (by title placeholder) to one or more departments. */
+/** Assigns an assessment to one or more departments (grouped from API rows). */
 export interface TenantTestDistribution {
+  /** Stable UI key — same as {@link testId} when grouped from API. */
   id: string;
+  testId: string;
   testTitle: string;
   assignedDepartmentIds: string[];
+  /** Backend assignment ids for DELETE when removing this row. */
+  assignmentIds: string[];
   createdAt: string;
 }

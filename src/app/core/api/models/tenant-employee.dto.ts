@@ -13,4 +13,8 @@ export interface TenantEmployeeResponseDto {
   departmentId: string;
   fullName: string;
   email: string;
+  provisionSource?: 'silent' | 'invite';
+  isActive?: boolean;
+  invitedViaInviteCodeId?: string | null;
+  createdAt?: string | null;
 }
