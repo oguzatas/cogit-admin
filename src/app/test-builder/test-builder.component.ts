@@ -1,39 +1,30 @@
-import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { CommonModule } from '@angular/common';
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ConfirmationService } from 'primeng/api';
-import { AccordionModule } from 'primeng/accordion';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { DialogModule } from 'primeng/dialog';
 import { FluidModule } from 'primeng/fluid';
 import { InputGroupModule } from 'primeng/inputgroup';
 import { InputGroupAddonModule } from 'primeng/inputgroupaddon';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
-import { RippleModule } from 'primeng/ripple';
 import { SelectModule } from 'primeng/select';
 import { SplitterModule } from 'primeng/splitter';
-import { TableModule } from 'primeng/table';
-import { TabsModule } from 'primeng/tabs';
 import { TextareaModule } from 'primeng/textarea';
 import { ToolbarModule } from 'primeng/toolbar';
 import { QuestionType } from './test-builder.models';
 import { TestBlueprintStore } from '@/app/tests/blueprint/test-blueprint.store';
-import type { TestVariable, ScoringMetric, BlueprintQuestion } from '@/app/core/api/models/test-blueprint.models';
+import { TestScoringSettingsComponent } from './test-scoring-settings/test-scoring-settings.component';
+import type { BlueprintQuestion } from '@/app/core/api/models/test-blueprint.models';
 import type {
   CreateQuestionCommand,
-  CreateScoringScaleCommand,
-  CreateTestVariableCommand,
   CreateOptionDto,
   CreateOptionPointDto,
   UpdateQuestionCommand,
   UpdateOptionDto,
   UpdateOptionPointDto,
-  UpdateScoringScaleCommand,
-  UpdateTestVariableCommand,
 } from '@/app/core/api/models/test-blueprint.dto';
 
 @Component({
@@ -42,11 +33,9 @@ import type {
   imports: [
     CommonModule,
     FormsModule,
-    DragDropModule,
     FluidModule,
     ToolbarModule,
     ButtonModule,
-    RippleModule,
     SplitterModule,
     CardModule,
     InputTextModule,
@@ -55,18 +44,14 @@ import type {
     InputGroupModule,
     InputGroupAddonModule,
     InputNumberModule,
-    AccordionModule,
     ConfirmDialogModule,
-    DialogModule,
-    TabsModule,
-    TableModule,
+    TestScoringSettingsComponent,
   ],
   templateUrl: './test-builder.component.html',
   styleUrl: './test-builder.component.scss',
   providers: [ConfirmationService],
 })
 export class TestBuilderComponent {
-  /** Required for blueprint APIs. */
   testId = input<string | null>(null);
 
   readonly blueprint = inject(TestBlueprintStore);
@@ -79,9 +64,6 @@ export class TestBuilderComponent {
     { label: 'Number input', value: QuestionType.NumberInput },
   ];
 
-  readonly settingsVisible = signal(false);
-
-  /** Draft state for the right panel (aggregate root). */
   readonly questionDraft = signal<
     (CreateQuestionCommand & {
       id?: string;
@@ -98,7 +80,6 @@ export class TestBuilderComponent {
 
   readonly testVariables = computed(() => this.blueprint.variables());
 
-  /** Variable dropdown options for OptionPoints. */
   readonly variableSelectOptions = computed(() =>
     this.testVariables().map((v) => ({
       label: `${v.key} — ${v.name}`,
@@ -132,14 +113,6 @@ export class TestBuilderComponent {
         this.questionDraft.set(q ? draftFromBlueprintQuestion(q) : null);
       });
     });
-  }
-
-  openSettings(): void {
-    this.settingsVisible.set(true);
-  }
-
-  closeSettings(): void {
-    this.settingsVisible.set(false);
   }
 
   selectQuestion(id: string): void {
@@ -283,8 +256,6 @@ export class TestBuilderComponent {
     if (!text) {
       return;
     }
-    // Variable key is only required for Text/Number inputs. For choice questions,
-    // generate a stable key if missing so backend merge has a consistent identifier.
     const qt = String(draft.questionType ?? '');
     const needsKey = qt === 'TextInput' || qt === 'NumberInput';
     const key = (draft.variableKey ?? '').trim();
@@ -294,7 +265,6 @@ export class TestBuilderComponent {
     if (needsKey && !effectiveKey) {
       return;
     }
-    // Validate option points when applicable
     for (const opt of draft.options ?? []) {
       for (const r of opt.optionPoints ?? []) {
         if (!r.testVariableId) {
@@ -303,7 +273,6 @@ export class TestBuilderComponent {
       }
     }
 
-    // New question: POST aggregate root. Existing: PUT aggregate root (3-way merge).
     if (!draft.id) {
       this.blueprint
         .createQuestion$({ ...draft, variableKey: effectiveKey })
@@ -350,132 +319,6 @@ export class TestBuilderComponent {
       acceptButtonStyleClass: 'p-button-danger',
       accept: () => this.blueprint.deleteQuestion$(q.id).subscribe({ error: () => {} }),
     });
-  }
-
-  // ===== Settings dialog: Variables =====
-  readonly newVariable = signal<CreateTestVariableCommand>({
-    name: '',
-    key: '',
-    defaultValue: 0,
-  } as any);
-  readonly variableEdits = signal<Record<string, UpdateTestVariableCommand>>({});
-
-  ensureVariableEdit(v: TestVariable): UpdateTestVariableCommand {
-    const cur = this.variableEdits();
-    const existing = cur[v.id];
-    if (existing) {
-      return existing;
-    }
-    const next: UpdateTestVariableCommand = {
-      id: v.id,
-      name: v.name,
-      key: v.key,
-      defaultValue: v.defaultValue,
-    } as any;
-    this.variableEdits.set({ ...cur, [v.id]: next });
-    return next;
-  }
-
-  patchVariableEdit(id: string, patch: Partial<UpdateTestVariableCommand>): void {
-    const cur = this.variableEdits();
-    const base = cur[id] ?? ({ id, name: '', key: '', defaultValue: 0 } as any);
-    this.variableEdits.set({ ...cur, [id]: { ...base, ...patch } });
-  }
-
-  patchNewVariable(patch: Partial<CreateTestVariableCommand>): void {
-    this.newVariable.set({ ...this.newVariable(), ...patch } as CreateTestVariableCommand);
-  }
-
-  patchNewMetric(patch: Partial<CreateScoringScaleCommand>): void {
-    this.newMetric.set({ ...this.newMetric(), ...patch } as CreateScoringScaleCommand);
-  }
-
-  createVariable(): void {
-    const tid = this.testId();
-    if (!tid) {
-      return;
-    }
-    const v = this.newVariable();
-    if (!v.name.trim() || !v.key.trim()) {
-      return;
-    }
-    this.blueprint.createVariable$(v).subscribe({
-      next: () => this.newVariable.set({ name: '', key: '', defaultValue: 0 } as any),
-      error: () => {},
-    });
-  }
-
-  saveVariable(id: string): void {
-    const e = this.variableEdits()[id];
-    if (!e || !e.name.trim() || !e.key.trim()) {
-      return;
-    }
-    this.blueprint.updateVariable$(id, e).subscribe({ error: () => {} });
-  }
-
-  deleteVariable(id: string): void {
-    this.blueprint.deleteVariable$(id).subscribe({ error: () => {} });
-  }
-
-  // ===== Settings dialog: Metrics =====
-  readonly newMetric = signal<CreateScoringScaleCommand>({
-    name: '',
-    key: '',
-    formulaExpression: '',
-  } as any);
-  readonly metricEdits = signal<Record<string, UpdateScoringScaleCommand>>({});
-
-  ensureMetricEdit(m: ScoringMetric): UpdateScoringScaleCommand {
-    const cur = this.metricEdits();
-    const existing = cur[m.id];
-    if (existing) {
-      return existing;
-    }
-    const next: UpdateScoringScaleCommand = {
-      id: m.id,
-      name: m.name,
-      formulaExpression: m.formulaExpression,
-    } as any;
-    this.metricEdits.set({ ...cur, [m.id]: next });
-    return next;
-  }
-
-  patchMetricEdit(id: string, patch: Partial<UpdateScoringScaleCommand>): void {
-    const cur = this.metricEdits();
-    const base = cur[id] ?? ({ id, name: '', formulaExpression: '' } as any);
-    this.metricEdits.set({ ...cur, [id]: { ...base, ...patch } });
-  }
-
-  createMetric(): void {
-    const tid = this.testId();
-    if (!tid) {
-      return;
-    }
-    const m = this.newMetric();
-    if (!m.name.trim() || !m.formulaExpression.trim()) {
-      return;
-    }
-    this.blueprint.createMetric$(m).subscribe({
-      next: () =>
-        this.newMetric.set({
-          name: '',
-          key: '',
-          formulaExpression: '',
-        } as any),
-      error: () => {},
-    });
-  }
-
-  saveMetric(id: string): void {
-    const e = this.metricEdits()[id];
-    if (!e || !e.name.trim() || !e.formulaExpression.trim()) {
-      return;
-    }
-    this.blueprint.updateMetric$(id, e).subscribe({ error: () => {} });
-  }
-
-  deleteMetric(id: string): void {
-    this.blueprint.deleteMetric$(id).subscribe({ error: () => {} });
   }
 
   listCardStyleClass(q: BlueprintQuestion): string {

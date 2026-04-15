@@ -22,6 +22,20 @@ import type {
   TestVariable,
 } from '@/app/core/api/models/test-blueprint.models';
 
+function unwrapArray(raw: unknown): unknown[] {
+  if (Array.isArray(raw)) {
+    return raw;
+  }
+  if (raw != null && typeof raw === 'object') {
+    const obj = raw as Record<string, unknown>;
+    const inner = obj['$values'] ?? obj['items'] ?? obj['Items'] ?? obj['value'] ?? obj['Value'];
+    if (Array.isArray(inner)) {
+      return inner;
+    }
+  }
+  return [];
+}
+
 /**
  * Admin/TenantStaff context — manages the test blueprint (variables, metrics, questions).
  */
@@ -35,9 +49,7 @@ export class TestBlueprintService {
       .get<unknown>(
       `${this.apiUrl}/api/Tests/${encodeURIComponent(testId)}/variables`,
       )
-      .pipe(
-        map((raw) => (Array.isArray(raw) ? raw : []).map(normalizeTestVariableDto)),
-      );
+      .pipe(map((raw) => unwrapArray(raw).map(normalizeTestVariableDto)));
   }
 
   createVariable(
@@ -70,9 +82,7 @@ export class TestBlueprintService {
       .get<unknown>(
       `${this.apiUrl}/api/Tests/${encodeURIComponent(testId)}/metrics`,
       )
-      .pipe(
-        map((raw) => (Array.isArray(raw) ? raw : []).map(normalizeScoringScaleDto)),
-      );
+      .pipe(map((raw) => unwrapArray(raw).map(normalizeScoringScaleDto)));
   }
 
   createMetric(
@@ -105,11 +115,7 @@ export class TestBlueprintService {
       .get<unknown>(
       `${this.apiUrl}/api/Tests/${encodeURIComponent(testId)}/questions`,
       )
-      .pipe(
-        map((raw) =>
-          (Array.isArray(raw) ? raw : []).map(normalizeQuestionWithOptionsDto),
-        ),
-      );
+      .pipe(map((raw) => unwrapArray(raw).map(normalizeQuestionWithOptionsDto)));
   }
 
   createQuestion(
