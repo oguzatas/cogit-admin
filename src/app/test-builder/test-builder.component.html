@@ -1,290 +1,328 @@
 <p-fluid class="flex flex-col gap-4">
-    <div class="card flex flex-col gap-4">
-        <p-toolbar styleClass="border-none bg-transparent p-0">
-            <ng-template #start>
-                <div class="flex flex-col md:flex-row gap-4 items-stretch md:items-end w-full">
-                    <div class="flex flex-col gap-2 grow basis-0 min-w-0 md:max-w-30rem">
-                        <label for="testTitle" class="font-semibold text-lg">Test title</label>
-                        <input
-                            pInputText
-                            fluid
-                            id="testTitle"
-                            type="text"
-                            placeholder="Name this assessment"
-                            [value]="store.testTitle()"
-                            (input)="store.updateTestTitle($any($event.target).value)"
-                        />
+    @if (!testId()) {
+        <div class="card">
+            <div class="font-semibold text-lg">No test selected</div>
+            <p class="m-0 text-muted-color text-sm">Create or open a test first.</p>
+        </div>
+    } @else {
+        <div class="card flex flex-col gap-4">
+            <p-toolbar styleClass="border-none bg-transparent p-0">
+                <ng-template #start>
+                    <div class="flex flex-wrap items-center gap-3 w-full">
+                        <div class="flex flex-col min-w-0">
+                            <div class="font-semibold text-xl">Question builder</div>
+                            <div class="text-sm text-muted-color">{{ blueprint.questions().length }} question(s)</div>
+                        </div>
                     </div>
-                    <span class="text-muted-color text-sm md:ml-auto">{{ store.totalQuestions() }} question(s)</span>
-                </div>
-            </ng-template>
-            <ng-template #end>
-                <p-button
-                    label="Add question"
-                    icon="pi pi-plus"
-                    severity="secondary"
-                    styleClass="whitespace-nowrap"
-                    (onClick)="addSingleChoiceQuestion()"
-                />
-            </ng-template>
-        </p-toolbar>
-    </div>
+                </ng-template>
+                <ng-template #end>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <p-button label="⚙️ Scoring Settings" icon="pi pi-cog" severity="secondary" [outlined]="true" styleClass="whitespace-nowrap" (onClick)="openSettings()" />
+                        <p-button label="Add question" icon="pi pi-plus" severity="secondary" styleClass="whitespace-nowrap" (onClick)="startNewQuestion(questionTypeOptions[0]!.value)" />
+                    </div>
+                </ng-template>
+            </p-toolbar>
+        </div>
 
-    <div class="card p-0 overflow-hidden">
-        <p-splitter [style]="{ minHeight: 'min(42rem, calc(100vh - 16rem))' }" [panelSizes]="[32, 68]" [minSizes]="[20, 40]">
-            <ng-template #panel>
-                <div class="flex flex-col gap-3 p-4 h-full overflow-y-auto surface-ground" style="min-height: inherit">
-                    <div class="font-semibold text-xl">Questions</div>
-                    @if (store.questions().length === 0) {
-                        <p class="m-0 text-muted-color text-sm">No questions yet. Use “Add question” to create one.</p>
-                    }
-                    <div
-                        cdkDropList
-                        class="flex flex-col gap-3"
-                        [cdkDropListData]="store.questions()"
-                        (cdkDropListDropped)="onQuestionDropped($event)"
-                    >
-                        @for (q of store.questions(); track q.id) {
-                            <div class="flex gap-2 items-stretch" cdkDrag>
-                                <button
-                                    type="button"
-                                    cdkDragHandle
-                                    class="flex items-center justify-center surface-border border-1 border-round px-2 cursor-move text-muted-color hover:text-color"
-                                    aria-label="Drag to reorder"
-                                >
-                                    <i class="pi pi-bars"></i>
-                                </button>
-                                <div
-                                    class="flex-1 min-w-0"
-                                    role="button"
-                                    tabindex="0"
-                                    (click)="store.selectQuestion(q.id)"
-                                    (keydown.enter)="store.selectQuestion(q.id)"
-                                >
+        <div class="card p-0 overflow-hidden">
+            <p-splitter [style]="{ minHeight: 'min(42rem, calc(100vh - 16rem))' }" [panelSizes]="[32, 68]" [minSizes]="[20, 40]">
+                <ng-template #panel>
+                    <div class="flex flex-col gap-3 p-4 h-full overflow-y-auto surface-ground" style="min-height: inherit">
+                        <div class="font-semibold text-xl">Questions</div>
+                        @if (blueprint.questions().length === 0) {
+                            <p class="m-0 text-muted-color text-sm">No questions yet. Click “New question” to create one.</p>
+                        }
+                        <div class="flex flex-col gap-3">
+                            @for (q of blueprint.questions(); track q.id) {
+                                <div class="flex-1 min-w-0" role="button" tabindex="0" (click)="selectQuestion(q.id)" (keydown.enter)="selectQuestion(q.id)">
                                     <p-card [styleClass]="listCardStyleClass(q)">
                                         <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-                                            <span class="font-semibold text-sm">Order {{ q.orderIndex }}</span>
-                                            @if (questionHasInvalidRule(q)) {
-                                                <i
-                                                    class="pi pi-exclamation-triangle text-red-500"
-                                                    title="One or more branching rules have an invalid target order"
-                                                ></i>
-                                            }
+                                            <span class="font-semibold text-sm">#{{ q.orderIndex + 1 }} · {{ q.variableKey }}</span>
                                         </div>
-                                        <p class="m-0 text-muted-color text-sm line-height-3">
-                                            {{ snippet(q.text, 72) }}
-                                        </p>
+                                        <p class="m-0 text-muted-color text-sm line-height-3">{{ snippet(q.text, 72) }}</p>
                                     </p-card>
                                 </div>
-                                <div class="flex items-start pt-1">
-                                    <p-button
-                                        icon="pi pi-trash"
-                                        severity="danger"
-                                        [rounded]="true"
-                                        [outlined]="true"
-                                        [text]="true"
-                                        aria-label="Delete question"
-                                        (onClick)="requestDeleteQuestion(q.id)"
-                                    />
-                                </div>
-                            </div>
-                        }
+                            }
+                        </div>
                     </div>
-                </div>
-            </ng-template>
-            <ng-template #panel>
-                <div class="flex flex-col gap-6 p-4 md:p-6 h-full overflow-y-auto" style="min-height: inherit">
-                    @if (store.selectedQuestion(); as q) {
-                        <div class="flex flex-col gap-6">
-                            <div>
-                                <h5 class="m-0 mb-4 font-semibold text-xl">Question settings</h5>
+                </ng-template>
+                <ng-template #panel>
+                    <div class="flex flex-col gap-6 p-4 md:p-6 h-full overflow-y-auto" style="min-height: inherit">
+                        @if (questionDraft(); as q) {
+                            <div class="flex flex-col gap-6">
+                                <div class="flex flex-wrap items-center justify-between gap-3">
+                                    <h5 class="m-0 font-semibold text-xl">Question</h5>
+                                    <div class="flex flex-wrap gap-2">
+                                        <p-button label="Delete" icon="pi pi-trash" severity="danger" [outlined]="true" [disabled]="!q.id" (onClick)="confirmDeleteSelected()" />
+                                    </div>
+                                </div>
+
                                 <div class="flex flex-col gap-4">
                                     <div class="flex flex-col gap-2">
-                                        <label [attr.for]="'qtext-' + q.id" class="font-semibold">Question text</label>
-                                        <textarea
-                                            pTextarea
-                                            fluid
-                                            rows="4"
-                                            [id]="'qtext-' + q.id"
-                                            [value]="q.text"
-                                            (input)="store.updateQuestionText(q.id, $any($event.target).value)"
-                                            placeholder="Enter the question shown to respondents"
-                                        ></textarea>
+                                        <label class="font-semibold">Question text</label>
+                                        <textarea pTextarea fluid rows="4" [ngModel]="q.text" (ngModelChange)="patchDraft({ text: $event })"></textarea>
                                     </div>
                                     <div class="grid grid-cols-12 gap-4">
                                         <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
-                                            <label [attr.for]="'qvar-' + q.id" class="font-semibold">Variable key</label>
-                                            <input
-                                                pInputText
-                                                fluid
-                                                [id]="'qvar-' + q.id"
-                                                type="text"
-                                                [value]="q.variableKey"
-                                                (input)="store.updateQuestionVariableKey(q.id, $any($event.target).value)"
-                                                placeholder="e.g. Q1"
-                                            />
+                                            <label class="font-semibold">Type</label>
+                                            <p-select [ngModel]="q.questionType" (ngModelChange)="patchDraft({ questionType: $event })" [options]="questionTypeOptions" optionLabel="label" optionValue="value" class="w-full" fluid appendTo="body"></p-select>
                                         </div>
-                                        <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
-                                            <label [attr.for]="'qtype-' + q.id" class="font-semibold">Type</label>
-                                            <p-select
-                                                inputId="qtype-{{ q.id }}"
-                                                [ngModel]="q.type"
-                                                (ngModelChange)="store.updateQuestionType(q.id, $event)"
-                                                [options]="questionTypeOptions"
-                                                optionLabel="label"
-                                                optionValue="value"
-                                                placeholder="Select type"
-                                                class="w-full"
-                                                fluid
-                                                appendTo="body"
-                                            ></p-select>
-                                        </div>
+                                        @if (q.questionType === 'TextInput' || q.questionType === 'NumberInput') {
+                                            <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+                                                <label class="font-semibold">Variable key</label>
+                                                <input pInputText fluid type="text" [ngModel]="q.variableKey" (ngModelChange)="patchDraft({ variableKey: $event })" />
+                                            </div>
+                                        }
                                     </div>
                                 </div>
-                            </div>
 
-                            @if (q.type === 'SingleChoice' || q.type === 'MultipleChoice') {
-                                <div class="flex flex-col gap-4">
-                                    <div class="flex flex-wrap items-center justify-between gap-3">
-                                        <h5 class="m-0 font-semibold text-xl">Answer options</h5>
-                                        <p-button
-                                            label="Add option"
-                                            icon="pi pi-plus"
-                                            severity="secondary"
-                                            [outlined]="true"
-                                            size="small"
-                                            (onClick)="store.addOption(q.id); $event.stopPropagation()"
-                                        />
-                                    </div>
-                                    <div class="flex flex-col gap-3">
-                                        @for (opt of q.options; track opt.id) {
-                                            <p-inputgroup>
-                                                <p-inputgroup-addon>
-                                                    <span class="text-sm text-muted-color">#{{ opt.orderIndex }}</span>
-                                                </p-inputgroup-addon>
-                                                <input
-                                                    pInputText
-                                                    fluid
-                                                    type="text"
-                                                    placeholder="Option label"
-                                                    [value]="opt.text"
-                                                    (input)="store.updateOptionText(q.id, opt.id, $any($event.target).value)"
-                                                />
-                                                <p-inputnumber
-                                                    placeholder="Score"
-                                                    [ngModel]="opt.numericValue"
-                                                    (ngModelChange)="store.updateOptionNumericValue(q.id, opt.id, $event ?? 0)"
-                                                    [showButtons]="false"
-                                                    inputStyleClass="w-8rem"
-                                                />
-                                                <p-button
-                                                    icon="pi pi-trash"
-                                                    severity="danger"
-                                                    [outlined]="true"
-                                                    [rounded]="true"
-                                                    (onClick)="store.removeOption(q.id, opt.id); $event.stopPropagation()"
-                                                />
-                                            </p-inputgroup>
+                                @if (q.questionType === questionTypeOptions[0]!.value || q.questionType === questionTypeOptions[1]!.value) {
+                                    <div class="flex flex-col gap-4">
+                                        <div class="flex flex-wrap items-center justify-between gap-3">
+                                            <h5 class="m-0 font-semibold text-xl">Answer options</h5>
+                                            <p-button label="Add option" icon="pi pi-plus" severity="secondary" [outlined]="true" size="small" (onClick)="addOption()" />
+                                        </div>
+
+                                        @for (opt of q.options; track opt; let optIndex = $index) {
+                                            <div class="flex flex-col gap-2">
+                                                <p-inputgroup>
+                                                    <p-inputgroup-addon>
+                                                        <span class="text-sm text-muted-color">#{{ optIndex + 1 }}</span>
+                                                    </p-inputgroup-addon>
+                                                    <input
+                                                        pInputText
+                                                        fluid
+                                                        type="text"
+                                                        placeholder="Option label"
+                                                        [ngModel]="opt.text"
+                                                        (ngModelChange)="updateOptionText(optIndex, $event)"
+                                                    />
+                                                    <p-inputnumber
+                                                        placeholder="0"
+                                                        [ngModel]="opt.numericValue"
+                                                        (ngModelChange)="updateOptionNumericValue(optIndex, $event ?? null)"
+                                                        [showButtons]="false"
+                                                        inputStyleClass="w-8rem"
+                                                    />
+                                                    <p-button
+                                                        icon="pi pi-trash"
+                                                        severity="danger"
+                                                        [outlined]="true"
+                                                        [rounded]="true"
+                                                        aria-label="Delete option"
+                                                        (onClick)="removeOption(optIndex)"
+                                                    />
+                                                </p-inputgroup>
+
+                                                <div class="flex justify-start">
+                                                    <p-button
+                                                        label="+ Add Scoring Rule"
+                                                        icon="pi pi-plus"
+                                                        severity="secondary"
+                                                        [text]="true"
+                                                        size="small"
+                                                        (onClick)="addScoringRule(optIndex)"
+                                                        [disabled]="testVariables().length === 0"
+                                                    />
+                                                </div>
+
+                                                @if (testVariables().length === 0) {
+                                                    <p class="m-0 text-muted-color text-sm pl-3">
+                                                        Add variables in “Scoring Settings” first.
+                                                    </p>
+                                                }
+
+                                                @for (rule of opt.optionPoints; track rule; let ruleIndex = $index) {
+                                                    <div class="grid grid-cols-12 gap-3 items-end pl-3">
+                                                        <div class="col-span-12 md:col-span-7 flex flex-col gap-2">
+                                                            <label class="font-semibold text-sm">Variable</label>
+                                                            <p-select
+                                                                [ngModel]="rule.testVariableId"
+                                                                (ngModelChange)="updateScoringRule(optIndex, ruleIndex, { testVariableId: $event })"
+                                                                [options]="variableSelectOptions()"
+                                                                optionLabel="label"
+                                                                optionValue="value"
+                                                                placeholder="Select variable"
+                                                                class="w-full"
+                                                                fluid
+                                                                appendTo="body"
+                                                            ></p-select>
+                                                        </div>
+                                                        <div class="col-span-9 md:col-span-4 flex flex-col gap-2">
+                                                            <label class="font-semibold text-sm">Points</label>
+                                                            <p-inputnumber
+                                                                [ngModel]="rule.points"
+                                                                (ngModelChange)="updateScoringRule(optIndex, ruleIndex, { points: $event ?? 0 })"
+                                                                fluid
+                                                            />
+                                                        </div>
+                                                        <div class="col-span-3 md:col-span-1 flex justify-end">
+                                                            <p-button
+                                                                icon="pi pi-trash"
+                                                                severity="danger"
+                                                                [outlined]="true"
+                                                                [rounded]="true"
+                                                                aria-label="Delete scoring rule"
+                                                                (onClick)="removeScoringRule(optIndex, ruleIndex)"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                }
+                                            </div>
                                         }
+
                                         @if (q.options.length === 0) {
                                             <p class="m-0 text-muted-color text-sm">No options yet. Add at least one for this question type.</p>
                                         }
                                     </div>
-                                </div>
-                            }
+                                }
 
-                            <p-accordion value="0">
-                                <p-accordion-panel value="0">
-                                    <p-accordion-header>Logic &amp; Branching</p-accordion-header>
-                                    <p-accordion-content>
-                                        <div class="flex flex-col gap-4">
-                                            <div class="flex flex-wrap items-center justify-between gap-3">
-                                                <p class="m-0 text-muted-color text-sm">
-                                                    Targets are limited to questions that appear later in the flow.
-                                                </p>
-                                                <p-button
-                                                    label="Add rule"
-                                                    icon="pi pi-sitemap"
-                                                    severity="secondary"
-                                                    [outlined]="true"
-                                                    size="small"
-                                                    (onClick)="store.addBranchingRule(q.id)"
-                                                />
-                                            </div>
-                                            @for (rule of q.branchingRules; track rule.id) {
-                                                <div class="flex flex-col gap-3 p-4 surface-ground border-round border-1 surface-border">
-                                                    <div class="flex flex-wrap items-center justify-between gap-2">
-                                                        <span class="font-semibold text-sm">Rule</span>
-                                                        <div class="flex flex-wrap items-center gap-2">
-                                                            @if (rule.isInvalid) {
-                                                                <span class="text-xs flex items-center gap-1 text-red-500">
-                                                                    <i class="pi pi-exclamation-triangle"></i>
-                                                                    Invalid target order
-                                                                </span>
-                                                            }
-                                                            @if (rule.isDefault) {
-                                                                <span class="text-xs font-semibold px-2 py-1 border-round bg-primary text-primary-contrast">Default</span>
-                                                            }
-                                                        </div>
-                                                    </div>
-                                                    <div class="flex flex-col gap-2">
-                                                        <label [attr.for]="'cond-' + rule.id" class="text-sm font-semibold">Condition expression</label>
-                                                        <input
-                                                            pInputText
-                                                            fluid
-                                                            [id]="'cond-' + rule.id"
-                                                            type="text"
-                                                            [value]="rule.conditionExpression"
-                                                            (input)="store.updateBranchingRuleCondition(q.id, rule.id, $any($event.target).value)"
-                                                            placeholder="e.g. [Q1] == 'A'"
-                                                        />
-                                                    </div>
-                                                    <div class="flex flex-col gap-2">
-                                                        <label [attr.for]="'tgt-' + rule.id" class="text-sm font-semibold">Target question</label>
-                                                        <p-select
-                                                            [inputId]="'tgt-' + rule.id"
-                                                            [ngModel]="rule.targetQuestionId"
-                                                            (ngModelChange)="onRuleTargetChange(q.id, rule.id, $event)"
-                                                            [options]="branchTargetSelectOptions()"
-                                                            optionLabel="label"
-                                                            optionValue="value"
-                                                            placeholder="Select target question"
-                                                            showClear
-                                                            class="w-full"
-                                                            fluid
-                                                            appendTo="body"
-                                                        ></p-select>
-                                                    </div>
-                                                    <div class="flex justify-end">
-                                                        <p-button
-                                                            label="Remove rule"
-                                                            icon="pi pi-trash"
-                                                            severity="danger"
-                                                            [text]="true"
-                                                            size="small"
-                                                            (onClick)="store.removeBranchingRule(q.id, rule.id)"
-                                                        />
-                                                    </div>
+                                <div class="pt-2 border-top-1 surface-border"></div>
+                                <div class="flex justify-end">
+                                    <p-button label="💾 Save Question" icon="pi pi-save" [disabled]="!q.text.trim()" (onClick)="saveQuestion()" />
+                                </div>
+                            </div>
+                        } @else {
+                            <div class="flex flex-col items-center justify-center gap-2 text-center h-full text-muted-color">
+                                <i class="pi pi-info-circle text-2xl"></i>
+                                <div class="font-semibold">Select or create a question</div>
+                                <div class="text-sm">Choose a question on the left, or click “New question”.</div>
+                            </div>
+                        }
+                    </div>
+                </ng-template>
+            </p-splitter>
+        </div>
+
+        <p-dialog [visible]="settingsVisible()" (visibleChange)="settingsVisible.set($event)" [style]="{ width: 'min(60rem, 95vw)' }" header="Scoring Settings" [modal]="true">
+            <p-tabs value="0">
+                <p-tablist>
+                    <p-tab value="0">Variables</p-tab>
+                    <p-tab value="1">Formulas</p-tab>
+                </p-tablist>
+                <p-tabpanels>
+                    <p-tabpanel value="0">
+                        <div class="flex flex-col gap-4">
+                            <div>
+                                <div class="font-semibold text-lg">Variables</div>
+                                <p class="m-0 text-sm text-muted-color">Used by option points and formulas (NCalc).</p>
+                            </div>
+
+                            <div class="grid grid-cols-12 gap-3 items-end">
+                                <div class="col-span-12 md:col-span-4 flex flex-col gap-2">
+                                    <label class="font-semibold text-sm">Name</label>
+                                    <input pInputText fluid [ngModel]="newVariable().name" (ngModelChange)="patchNewVariable({ name: $event })" />
+                                </div>
+                                <div class="col-span-12 md:col-span-3 flex flex-col gap-2">
+                                    <label class="font-semibold text-sm">Key</label>
+                                    <input pInputText fluid [ngModel]="newVariable().key" (ngModelChange)="patchNewVariable({ key: $event })" />
+                                </div>
+                                <div class="col-span-12 md:col-span-3 flex flex-col gap-2">
+                                    <label class="font-semibold text-sm">Default</label>
+                                    <p-inputnumber fluid [ngModel]="newVariable().defaultValue" (ngModelChange)="patchNewVariable({ defaultValue: $event ?? 0 })" />
+                                </div>
+                                <div class="col-span-12 md:col-span-2 flex justify-end">
+                                    <p-button label="Add" icon="pi pi-plus" severity="secondary" (onClick)="createVariable()" />
+                                </div>
+                            </div>
+
+                            <p-table [value]="blueprint.variables()" dataKey="id" [stripedRows]="true" styleClass="w-full p-datatable-sm">
+                                <ng-template #header>
+                                    <tr>
+                                        <th style="min-width: 14rem">Name</th>
+                                        <th style="min-width: 10rem">Key</th>
+                                        <th style="width: 12rem">Default</th>
+                                        <th style="width: 10rem"></th>
+                                    </tr>
+                                </ng-template>
+                                <ng-template #body let-v>
+                                    @if (ensureVariableEdit(v); as e) {
+                                        <tr>
+                                            <td><input pInputText fluid [ngModel]="e.name" (ngModelChange)="patchVariableEdit(v.id, { name: $event })" /></td>
+                                            <td><input pInputText fluid [ngModel]="e.key" (ngModelChange)="patchVariableEdit(v.id, { key: $event })" /></td>
+                                            <td><p-inputnumber fluid [ngModel]="e.defaultValue" (ngModelChange)="patchVariableEdit(v.id, { defaultValue: $event ?? 0 })" /></td>
+                                            <td class="text-right">
+                                                <div class="flex justify-end gap-2">
+                                                    <p-button icon="pi pi-check" severity="secondary" [outlined]="true" [rounded]="true" (onClick)="saveVariable(v.id)" />
+                                                    <p-button icon="pi pi-trash" severity="danger" [outlined]="true" [rounded]="true" (onClick)="deleteVariable(v.id)" />
                                                 </div>
-                                            }
-                                            @if (q.branchingRules.length === 0) {
-                                                <p class="m-0 text-muted-color text-sm">No branching rules. Add a rule to jump to a later question based on logic.</p>
-                                            }
-                                        </div>
-                                    </p-accordion-content>
-                                </p-accordion-panel>
-                            </p-accordion>
+                                            </td>
+                                        </tr>
+                                    }
+                                </ng-template>
+                                <ng-template #emptymessage>
+                                    <tr><td colspan="4" class="py-6 text-center text-muted-color">No variables yet.</td></tr>
+                                </ng-template>
+                            </p-table>
                         </div>
-                    } @else {
-                        <div class="flex flex-col items-center justify-center gap-3 flex-1 text-center p-6 text-muted-color min-h-12rem">
-                            <i class="pi pi-arrow-left text-4xl opacity-40"></i>
-                            <p class="m-0 text-lg">Select a question from the list to edit its details.</p>
+                    </p-tabpanel>
+                    <p-tabpanel value="1">
+                        <div class="flex flex-col gap-4">
+                            <div>
+                                <div class="font-semibold text-lg">Formulas</div>
+                                <p class="m-0 text-sm text-muted-color">Define metrics using NCalc expressions over variables.</p>
+                            </div>
+
+                                <div class="grid grid-cols-12 gap-3 items-end">
+                                <div class="col-span-12 md:col-span-4 flex flex-col gap-2">
+                                    <label class="font-semibold text-sm">Name</label>
+                                    <input pInputText fluid [ngModel]="newMetric().name" (ngModelChange)="patchNewMetric({ name: $event })" />
+                                </div>
+                                    <div class="col-span-12 md:col-span-3 flex flex-col gap-2">
+                                        <label class="font-semibold text-sm">Key</label>
+                                        <input pInputText fluid [ngModel]="newMetric().key" (ngModelChange)="patchNewMetric({ key: $event })" />
+                                    </div>
+                                <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+                                    <label class="font-semibold text-sm">Formula Expression</label>
+                                    <textarea pTextarea fluid rows="2" [ngModel]="newMetric().formulaExpression" (ngModelChange)="patchNewMetric({ formulaExpression: $event })"></textarea>
+                                </div>
+                                <div class="col-span-12 md:col-span-2 flex justify-end">
+                                    <p-button label="Add" icon="pi pi-plus" severity="secondary" (onClick)="createMetric()" />
+                                </div>
+                            </div>
+
+                            <p-table [value]="blueprint.metrics()" dataKey="id" [stripedRows]="true" styleClass="w-full p-datatable-sm">
+                                <ng-template #header>
+                                    <tr>
+                                        <th style="min-width: 14rem">Name</th>
+                                        <th style="min-width: 10rem">Key</th>
+                                        <th style="min-width: 20rem">Formula</th>
+                                        <th style="width: 10rem"></th>
+                                    </tr>
+                                </ng-template>
+                                <ng-template #body let-m>
+                                    @if (ensureMetricEdit(m); as e) {
+                                        <tr>
+                                            <td><input pInputText fluid [ngModel]="e.name" (ngModelChange)="patchMetricEdit(m.id, { name: $event })" /></td>
+                                            <td><input pInputText fluid [ngModel]="e.key" (ngModelChange)="patchMetricEdit(m.id, { key: $event })" /></td>
+                                            <td>
+                                                <textarea
+                                                    pTextarea
+                                                    fluid
+                                                    rows="2"
+                                                    [ngModel]="e.formulaExpression"
+                                                    (ngModelChange)="patchMetricEdit(m.id, { formulaExpression: $event })"
+                                                ></textarea>
+                                            </td>
+                                            <td class="text-right">
+                                                <div class="flex justify-end gap-2">
+                                                    <p-button icon="pi pi-check" severity="secondary" [outlined]="true" [rounded]="true" (onClick)="saveMetric(m.id)" />
+                                                    <p-button icon="pi pi-trash" severity="danger" [outlined]="true" [rounded]="true" (onClick)="deleteMetric(m.id)" />
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </ng-template>
+                                <ng-template #emptymessage>
+                                    <tr><td colspan="4" class="py-6 text-center text-muted-color">No formulas yet.</td></tr>
+                                </ng-template>
+                            </p-table>
                         </div>
-                    }
-                </div>
-            </ng-template>
-        </p-splitter>
-    </div>
+                    </p-tabpanel>
+                </p-tabpanels>
+            </p-tabs>
+        </p-dialog>
+    }
 </p-fluid>
 
 <p-confirmdialog [style]="{ width: '32rem' }" />

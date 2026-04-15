@@ -60,8 +60,10 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   const isPublic = isPublicApiUrl(req.url, apiUrl);
   const access = tokens.getAccessToken();
+  // If the request already has Authorization (e.g. Guest JWT flow), do not overwrite it.
+  const hasAuthHeader = prepared.headers.has('Authorization');
   const withAuth =
-    !isPublic && access
+    !isPublic && access && !hasAuthHeader
       ? prepared.clone({
           setHeaders: { Authorization: `Bearer ${access}` },
         })

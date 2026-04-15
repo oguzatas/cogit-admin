@@ -60,7 +60,7 @@ import { TestsStore } from '@/app/pages/tests/tests.store';
         </div>
       </div>
 
-      <app-test-builder />
+      <app-test-builder [testId]="effectiveTestId()" />
     </div>
   `,
 })
@@ -77,10 +77,12 @@ export class TestBuilderPage {
   );
 
   private readonly baseline = signal<TestBuilderDraft | null>(null);
-  private currentId: string | null = null;
+  private readonly currentId = signal<string | null>(null);
 
   readonly isEditMode = computed(() => !!this.routeTestId());
   readonly modeLabel = computed(() => (this.isEditMode() ? 'Edit test' : 'Create test'));
+
+  readonly effectiveTestId = computed(() => this.routeTestId() ?? this.currentId());
 
   readonly headerTitle = computed(() => {
     const title = (this.store.testTitle() ?? '').trim();
@@ -114,7 +116,7 @@ export class TestBuilderPage {
         .pipe(take(1))
         .subscribe({
           next: (found) => {
-            this.currentId = found.id;
+            this.currentId.set(found.id);
             // Backend test currently only has name/description/publish; builder questions remain UI-only for now.
             this.store.loadDraft({
               title: found.name,
@@ -125,14 +127,14 @@ export class TestBuilderPage {
           error: () => {
             this.store.reset();
             this.baseline.set(cloneDraft(this.store.exportDraft()));
-            this.currentId = null;
+            this.currentId.set(null);
           },
         });
       return;
     }
 
     // create mode
-    this.currentId = null;
+    this.currentId.set(null);
     this.store.reset();
     this.baseline.set(cloneDraft(this.store.exportDraft()));
   }
@@ -168,8 +170,8 @@ export class TestBuilderPage {
 
     if (this.currentId) {
       this.tests
-        .update$(this.currentId, {
-          id: this.currentId,
+        .update$(this.currentId()!, {
+          id: this.currentId()!,
           name: title,
           description: null,
           isPublished: false,
@@ -187,7 +189,7 @@ export class TestBuilderPage {
       .pipe(take(1))
       .subscribe({
         next: (created) => {
-          this.currentId = created.id;
+          this.currentId.set(created.id);
           this.baseline.set(cloneDraft(this.store.exportDraft()));
           void this.router.navigate(['/tests', created.id, 'edit']);
         },

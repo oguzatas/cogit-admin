@@ -297,7 +297,7 @@ export class TenantDetailPage {
       .pipe(
         catchError(() => of([])),
         map((rows) =>
-          rows.map((r) => ({ label: r.title, value: r.id })),
+          rows.map((r) => ({ label: r.name, value: r.id })),
         ),
       )
       .subscribe({
