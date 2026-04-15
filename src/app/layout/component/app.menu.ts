@@ -31,9 +31,10 @@ export class AppMenu implements OnInit {
                 label: 'Assessments',
                 items: [
                     {
-                        label: 'Test builder',
+                        label: 'Tests',
                         icon: 'pi pi-fw pi-list-check',
-                        routerLink: ['/test-builder']
+                        routerLink: ['/tests'],
+                        routerLinkActiveOptions: { paths: 'subset', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' }
                     }
                 ]
             },

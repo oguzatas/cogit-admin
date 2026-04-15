@@ -6,6 +6,7 @@ import {
   Question,
   QuestionOption,
   QuestionType,
+  TestBuilderDraft,
 } from './test-builder.models';
 
 function createId(): string {
@@ -58,6 +59,39 @@ export class TestBuilderStore {
   });
 
   readonly totalQuestions = computed(() => this.questions().length);
+
+  reset(): void {
+    this.testTitle.set('Untitled assessment');
+    this.questions.set([]);
+    this.selectedQuestionId.set(null);
+  }
+
+  exportDraft(): TestBuilderDraft {
+    return {
+      title: this.testTitle(),
+      questions: this.questions(),
+    };
+  }
+
+  loadDraft(draft: TestBuilderDraft): void {
+    const questions = (draft.questions ?? [])
+      .slice()
+      .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
+      .map((q, index) => ({
+        ...q,
+        orderIndex: index,
+        options: (q.options ?? []).map((o, oi) => ({ ...o, orderIndex: oi })),
+        branchingRules: (q.branchingRules ?? []).map((r) => ({
+          ...r,
+          sourceQuestionId: q.id,
+        })),
+      }));
+
+    this.testTitle.set((draft.title ?? '').trim() || 'Untitled assessment');
+    this.questions.set(withRecomputedBranchingFlags(questions));
+    const firstId = questions[0]?.id ?? null;
+    this.selectedQuestionId.set(firstId);
+  }
 
   /**
    * Valid branch targets for `sourceQuestionId`: questions that appear strictly

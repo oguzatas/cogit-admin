@@ -5,6 +5,11 @@ export enum QuestionType {
   NumberInput = 'NumberInput',
 }
 
+export interface TestBuilderDraft {
+  title: string;
+  questions: Question[];
+}
+
 export interface QuestionOption {
   id: string;
   text: string;

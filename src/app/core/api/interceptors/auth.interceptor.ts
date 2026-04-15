@@ -69,7 +69,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(withAuth).pipe(
     catchError((err: unknown) => {
-      if (!(err instanceof HttpErrorResponse) || err.status !== 401) {
+      // Some backends use 403 for expired/invalid bearer; treat 401/403 the same
+      // for refresh+retry so the UI doesn't degrade into "network error" states.
+      const status =
+        err instanceof HttpErrorResponse ? err.status : null;
+      if (!(err instanceof HttpErrorResponse) || (status !== 401 && status !== 403)) {
         return throwError(() => err);
       }
       if (isPublic) {
