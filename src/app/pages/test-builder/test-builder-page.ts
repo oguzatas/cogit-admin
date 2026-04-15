@@ -3,13 +3,14 @@ import { Component, computed, effect, inject, signal, untracked } from '@angular
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { map } from 'rxjs/operators';
+import { take } from 'rxjs/operators';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
 import { TestBuilderComponent } from '@/app/test-builder/test-builder.component';
 import { TestBuilderStore } from '@/app/test-builder/test-builder.store';
 import type { TestBuilderDraft } from '@/app/test-builder/test-builder.models';
-import { TestsUiState } from '@/app/pages/tests/tests-ui.state';
+import { TestsStore } from '@/app/pages/tests/tests.store';
 
 @Component({
   selector: 'app-test-builder-page',
@@ -65,7 +66,7 @@ import { TestsUiState } from '@/app/pages/tests/tests-ui.state';
 })
 export class TestBuilderPage {
   private readonly store = inject(TestBuilderStore);
-  private readonly ui = inject(TestsUiState);
+  private readonly tests = inject(TestsStore);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly messages = inject(MessageService);
@@ -108,24 +109,25 @@ export class TestBuilderPage {
 
   private loadForRoute(id: string | null): void {
     if (id) {
-      const found = this.ui.getById(id);
-      if (!found) {
-        this.store.reset();
-        this.baseline.set(this.store.exportDraft());
-        this.currentId = null;
-        this.messages.add({
-          severity: 'warn',
-          summary: 'Test not found',
-          detail: 'Showing a blank draft.',
+      this.tests
+        .getById$(id)
+        .pipe(take(1))
+        .subscribe({
+          next: (found) => {
+            this.currentId = found.id;
+            // Backend test currently only has name/description/publish; builder questions remain UI-only for now.
+            this.store.loadDraft({
+              title: found.name,
+              questions: [],
+            });
+            this.baseline.set(cloneDraft(this.store.exportDraft()));
+          },
+          error: () => {
+            this.store.reset();
+            this.baseline.set(cloneDraft(this.store.exportDraft()));
+            this.currentId = null;
+          },
         });
-        return;
-      }
-      this.currentId = found.id;
-      this.store.loadDraft({
-        title: found.title,
-        questions: found.questions,
-      });
-      this.baseline.set(cloneDraft(this.store.exportDraft()));
       return;
     }
 
@@ -165,34 +167,32 @@ export class TestBuilderPage {
     }
 
     if (this.currentId) {
-      this.ui.upsert({
-        id: this.currentId,
-        title,
-        questions: draft.questions,
-      });
-      this.baseline.set(cloneDraft(this.store.exportDraft()));
-      this.messages.add({
-        severity: 'success',
-        summary: 'Saved',
-        detail: title,
-      });
+      this.tests
+        .update$(this.currentId, {
+          id: this.currentId,
+          name: title,
+          description: null,
+          isPublished: false,
+        })
+        .pipe(take(1))
+        .subscribe({
+          next: () => this.baseline.set(cloneDraft(this.store.exportDraft())),
+          error: () => {},
+        });
       return;
     }
 
-    const blank = this.ui.createBlank();
-    this.ui.upsert({
-      id: blank.id,
-      title,
-      questions: draft.questions,
-    });
-    this.currentId = blank.id;
-    this.baseline.set(cloneDraft(this.store.exportDraft()));
-    this.messages.add({
-      severity: 'success',
-      summary: 'Created',
-      detail: title,
-    });
-    void this.router.navigate(['/tests', blank.id, 'edit']);
+    this.tests
+      .create$({ name: title, description: null })
+      .pipe(take(1))
+      .subscribe({
+        next: (created) => {
+          this.currentId = created.id;
+          this.baseline.set(cloneDraft(this.store.exportDraft()));
+          void this.router.navigate(['/tests', created.id, 'edit']);
+        },
+        error: () => {},
+      });
   }
 }
 

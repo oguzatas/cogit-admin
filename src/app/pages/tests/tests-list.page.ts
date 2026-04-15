@@ -1,15 +1,25 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, effect, inject } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
+import { ConfirmationService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
-import { TestsUiState } from './tests-ui.state';
+import { TestsStore } from './tests.store';
 
 @Component({
   selector: 'app-tests-list-page',
   standalone: true,
-  imports: [CommonModule, RouterModule, TableModule, ButtonModule, TagModule],
+  imports: [
+    CommonModule,
+    RouterModule,
+    TableModule,
+    ButtonModule,
+    TagModule,
+    ConfirmDialogModule,
+  ],
+  providers: [ConfirmationService],
   template: `
     <div class="flex flex-col gap-4">
       <div
@@ -41,15 +51,29 @@ import { TestsUiState } from './tests-ui.state';
               Tests
             </h1>
             <p class="m-0 text-muted-color text-base md:text-lg max-w-36rem line-height-3">
-              Create and edit tests using the builder UI. (Endpoints will be
-              integrated next.)
+              Manage tests, update drafts, and publish when ready.
             </p>
           </div>
         </div>
       </div>
 
       <div class="card relative min-w-0 overflow-hidden">
-        <div class="font-semibold text-lg mb-4">All tests</div>
+        @if (store.listLoading()) {
+          <div
+            class="absolute inset-0 z-2 flex items-center justify-center bg-surface-0/70 dark:bg-surface-900/70 border-round"
+          >
+            <i class="pi pi-spin pi-spinner text-2xl text-muted-color"></i>
+          </div>
+        }
+
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div class="font-semibold text-lg">All tests</div>
+          <div class="flex items-center gap-2 text-sm text-muted-color">
+            <span>{{ store.tests().length }} total</span>
+            <span class="text-muted-color">•</span>
+            <span>{{ store.publishedCount() }} published</span>
+          </div>
+        </div>
 
         <p-table
           [value]="rows()"
@@ -61,34 +85,45 @@ import { TestsUiState } from './tests-ui.state';
         >
           <ng-template #header>
             <tr>
-              <th style="min-width: 18rem">Title</th>
-              <th style="width: 10rem">Questions</th>
-              <th style="width: 14rem">Updated</th>
-              <th style="width: 12rem"></th>
+              <th style="min-width: 18rem">Name</th>
+              <th style="width: 10rem">Status</th>
+              <th style="width: 14rem">Created</th>
+              <th style="width: 16rem"></th>
             </tr>
           </ng-template>
           <ng-template #body let-test>
             <tr (click)="editTest(test.id)" class="cursor-pointer">
-              <td class="font-semibold">{{ test.title }}</td>
+              <td class="font-semibold">{{ test.name }}</td>
               <td>
                 <p-tag
-                  [value]="test.questionCount.toString()"
-                  severity="info"
+                  [value]="test.isPublished ? 'Published' : 'Draft'"
+                  [severity]="test.isPublished ? 'success' : 'secondary'"
                 />
               </td>
               <td class="text-sm text-muted-color">
-                {{ test.updatedAt | date: 'medium' }}
+                {{ test.created | date: 'medium' }}
               </td>
               <td (click)="$event.stopPropagation()">
-                <p-button
-                  label="Edit"
-                  icon="pi pi-pencil"
-                  severity="secondary"
-                  [outlined]="true"
-                  [rounded]="true"
-                  size="small"
-                  (onClick)="editTest(test.id)"
-                />
+                <div class="flex justify-end gap-2">
+                  <p-button
+                    label="Edit"
+                    icon="pi pi-pencil"
+                    severity="secondary"
+                    [outlined]="true"
+                    [rounded]="true"
+                    size="small"
+                    (onClick)="editTest(test.id)"
+                  />
+                  <p-button
+                    icon="pi pi-trash"
+                    severity="danger"
+                    [outlined]="true"
+                    [rounded]="true"
+                    size="small"
+                    aria-label="Delete test"
+                    (onClick)="confirmDelete(test)"
+                  />
+                </div>
               </td>
             </tr>
           </ng-template>
@@ -100,22 +135,22 @@ import { TestsUiState } from './tests-ui.state';
             </tr>
           </ng-template>
         </p-table>
+
+        <p-confirmDialog />
       </div>
     </div>
   `,
 })
 export class TestsListPage {
   private readonly router = inject(Router);
-  readonly state = inject(TestsUiState);
+  private readonly confirm = inject(ConfirmationService);
+  readonly store = inject(TestsStore);
 
-  readonly rows = computed(() =>
-    this.state.tests().map((t) => ({
-      id: t.id,
-      title: t.title,
-      questionCount: t.questions.length,
-      updatedAt: t.updatedAt,
-    })),
-  );
+  readonly rows = computed(() => this.store.tests());
+
+  constructor() {
+    effect(() => this.store.refresh());
+  }
 
   createTest(): void {
     void this.router.navigate(['/tests/new']);
@@ -123,6 +158,18 @@ export class TestsListPage {
 
   editTest(id: string): void {
     void this.router.navigate(['/tests', id, 'edit']);
+  }
+
+  confirmDelete(test: { id: string; name: string }): void {
+    this.confirm.confirm({
+      header: 'Delete test',
+      message: `Delete “${test.name}”? This cannot be undone.`,
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Delete',
+      rejectLabel: 'Cancel',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => this.store.delete$(test.id).subscribe(),
+    });
   }
 }
 
