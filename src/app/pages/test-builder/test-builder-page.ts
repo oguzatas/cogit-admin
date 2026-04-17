@@ -9,6 +9,7 @@ import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { FluidModule } from 'primeng/fluid';
 import { InputTextModule } from 'primeng/inputtext';
+import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
 import { TestBuilderComponent } from '@/app/test-builder/test-builder.component';
@@ -29,6 +30,7 @@ import { TestsStore } from '@/app/pages/tests/tests.store';
     ButtonModule,
     ConfirmDialogModule,
     InputTextModule,
+    ToggleSwitchModule,
     TextareaModule,
     TagModule,
     TestBuilderComponent,
@@ -88,14 +90,31 @@ import { TestsStore } from '@/app/pages/tests/tests.store';
             <div class="grid grid-cols-12 gap-4">
               <div class="col-span-12 md:col-span-8 flex flex-col gap-2">
                 <label class="font-semibold" for="testName">Test name <span class="text-red-500">*</span></label>
-                <input
-                  id="testName"
-                  pInputText
-                  fluid
-                  placeholder="e.g. Big Five Personality Assessment"
-                  [ngModel]="store.testTitle()"
-                  (ngModelChange)="store.updateTestTitle($event)"
-                />
+                <div class="flex flex-wrap items-end gap-4">
+                  <input
+                    id="testName"
+                    class="flex-1 min-w-[12rem]"
+                    pInputText
+                    fluid
+                    placeholder="e.g. Big Five Personality Assessment"
+                    [ngModel]="store.testTitle()"
+                    (ngModelChange)="store.updateTestTitle($event)"
+                  />
+                  @if (effectiveTestId()) {
+                    <div class="flex flex-wrap items-center gap-2 shrink-0 pb-0.5">
+                      <span class="font-semibold text-sm whitespace-nowrap">Visibility</span>
+                      <p-toggleSwitch
+                        [ngModel]="isPublished()"
+                        (ngModelChange)="onPublishedToggle($event)"
+                        [disabled]="publishTogglePending()"
+                        inputId="testPublishedSwitch"
+                      />
+                      <label for="testPublishedSwitch" class="text-sm cursor-pointer m-0 whitespace-nowrap" [class.text-primary]="isPublished()" [class.text-muted-color]="!isPublished()">
+                        {{ isPublished() ? 'Published' : 'Draft' }}
+                      </label>
+                    </div>
+                  }
+                </div>
               </div>
               <div class="col-span-12 md:col-span-4 flex flex-col gap-2">
                 <label class="font-semibold">Description <span class="text-muted-color font-normal text-sm">(optional)</span></label>
@@ -151,6 +170,11 @@ export class TestBuilderPage {
   /** Description is UI-only for now; wired to the update payload when saving. */
   readonly description = signal<string>('');
 
+  /** Mirrors GET /api/Tests/{id} — only meaningful in edit mode. */
+  readonly isPublished = signal(false);
+
+  readonly publishTogglePending = signal(false);
+
   readonly isEditMode = computed(() => !!this.routeTestId());
   readonly modeLabel = computed(() => (this.isEditMode() ? 'Edit test' : 'New test'));
   readonly effectiveTestId = computed(() => this.routeTestId() ?? this.currentId());
@@ -186,6 +210,7 @@ export class TestBuilderPage {
           next: (found) => {
             this.currentId.set(found.id);
             this.description.set(found.description ?? '');
+            this.isPublished.set(found.isPublished);
             this.store.loadDraft({ title: found.name, questions: [] });
             this.baseline.set(cloneDraft(this.store.exportDraft()));
           },
@@ -201,6 +226,7 @@ export class TestBuilderPage {
     // create mode — reset everything
     this.currentId.set(null);
     this.description.set('');
+    this.isPublished.set(false);
     this.store.reset();
     this.store.updateTestTitle('');
     this.baseline.set(cloneDraft(this.store.exportDraft()));
@@ -229,6 +255,49 @@ export class TestBuilderPage {
     this.messages.add({ severity: 'info', summary: 'Reverted', detail: 'Changes were discarded.' });
   }
 
+  onPublishedToggle(value: boolean): void {
+    const id = this.currentId();
+    if (!id) {
+      return;
+    }
+    const title = (this.store.testTitle() ?? '').trim();
+    if (!title) {
+      this.messages.add({
+        severity: 'warn',
+        summary: 'Title required',
+        detail: 'Enter a test name before changing visibility.',
+      });
+      return;
+    }
+    const previous = this.isPublished();
+    this.isPublished.set(value);
+    this.publishTogglePending.set(true);
+    this.tests
+      .update$(
+        id,
+        {
+          id,
+          name: title,
+          description: this.description() || null,
+          isPublished: value,
+        },
+        {
+          successSummary: value ? 'Test Published' : 'Test moved to Draft',
+        },
+      )
+      .pipe(take(1))
+      .subscribe({
+        next: (res) => {
+          this.isPublished.set(res.isPublished);
+          this.publishTogglePending.set(false);
+        },
+        error: () => {
+          this.isPublished.set(previous);
+          this.publishTogglePending.set(false);
+        },
+      });
+  }
+
   save(): void {
     const title = (this.store.testTitle() ?? '').trim();
     if (!title) {
@@ -245,7 +314,7 @@ export class TestBuilderPage {
           id: existingId,
           name: title,
           description: this.description() || null,
-          isPublished: false,
+          isPublished: this.isPublished(),
         })
         .pipe(take(1))
         .subscribe({

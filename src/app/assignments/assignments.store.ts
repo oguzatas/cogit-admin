@@ -1,251 +1,302 @@
-import { computed, Injectable, signal } from '@angular/core';
-import {
-  Assignment,
-  AssignmentParticipant,
-  AssignmentRollupStatus,
-  ParticipantRowStatus,
-} from './assignments.models';
+import { computed, Injectable, inject, signal } from '@angular/core';
+import { MessageService } from 'primeng/api';
+import { catchError, finalize, of } from 'rxjs';
+import { AssignmentService } from '@/app/core/api/services/assignment.service';
+import { DepartmentService } from '@/app/core/api/services/department.service';
+import { TenantService } from '@/app/core/api/services/tenant.service';
+import { TenantEmployeeService } from '@/app/core/api/services/tenant-employee.service';
+import { TestService } from '@/app/core/api/services/test.service';
+import { apiErrorMessage } from '@/app/core/api/utils/api-error-message';
+import type { AssignmentCreateRequestDto } from '@/app/core/api/models/assignment.dto';
+import type { DepartmentResponseDto } from '@/app/core/api/models/department.dto';
+import type { TenantResponseDto } from '@/app/core/api/models/tenant.dto';
+import type { TestListItemResponseDto } from '@/app/core/api/models/test.dto';
+import type {
+  EmployeeAssignmentDto,
+  TenantEmployeeListItemDto,
+} from '@/app/core/api/models/tenant-employee.dto';
 
-function createId(): string {
-  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `asg_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function seedAssignments(): Assignment[] {
-  const t1 = '2026-04-08T09:00:00.000Z';
-  const t2 = '2026-04-09T14:30:00.000Z';
-  const t3 = '2026-04-10T11:15:00.000Z';
-  const t4 = '2026-04-10T16:45:00.000Z';
-
-  return [
-    {
-      id: 'asg-safety-001',
-      testTitle: 'Annual safety assessment',
-      tenantId: 'tenant-demo-acme',
-      tenantName: 'Acme Clinics',
-      departmentScopeLabel: 'Clinical · Reception',
-      lifecycleStatus: 'active',
-      createdAt: t1,
-      participants: [
-        {
-          tenantEmployeeId: 'emp-1',
-          displayName: 'Maya Chen',
-          email: 'maya.chen@acme.example',
-          openedAt: t2,
-          completedAt: t4,
-          resultLabel: 'Score 88 · Pass',
-        },
-        {
-          tenantEmployeeId: 'emp-2',
-          displayName: 'Jon Rivera',
-          email: 'jon.rivera@acme.example',
-          openedAt: t3,
-          completedAt: null,
-          resultLabel: null,
-        },
-        {
-          tenantEmployeeId: 'emp-3',
-          displayName: 'Sam Okonkwo',
-          email: 'sam.okonkwo@acme.example',
-          openedAt: null,
-          completedAt: null,
-          resultLabel: null,
-        },
-      ],
-    },
-    {
-      id: 'asg-onboard-002',
-      testTitle: 'New hire onboarding checklist',
-      tenantId: 'tenant-demo-northwind',
-      tenantName: 'Northwind Logistics',
-      departmentScopeLabel: 'Warehouse · HQ',
-      lifecycleStatus: 'active',
-      createdAt: t2,
-      participants: [
-        {
-          tenantEmployeeId: 'emp-4',
-          displayName: 'Alex Morgan',
-          email: 'alex.morgan@northwind.example',
-          openedAt: t2,
-          completedAt: t2,
-          resultLabel: 'Completed · 100%',
-        },
-        {
-          tenantEmployeeId: 'emp-5',
-          displayName: 'Priya Singh',
-          email: 'priya.singh@northwind.example',
-          openedAt: t3,
-          completedAt: t3,
-          resultLabel: 'Completed · 96%',
-        },
-      ],
-    },
-    {
-      id: 'asg-wellness-003',
-      testTitle: 'Quarterly wellness survey',
-      tenantId: 'tenant-demo-acme',
-      tenantName: 'Acme Clinics',
-      departmentScopeLabel: 'All departments',
-      lifecycleStatus: 'draft',
-      createdAt: t4,
-      participants: [
-        {
-          tenantEmployeeId: 'emp-6',
-          displayName: 'Taylor Brooks',
-          email: 'taylor.brooks@acme.example',
-          openedAt: null,
-          completedAt: null,
-          resultLabel: null,
-        },
-      ],
-    },
-  ];
-}
+export type AssignmentStatusSeverity =
+  | 'success'
+  | 'info'
+  | 'secondary'
+  | 'warn'
+  | 'danger'
+  | 'contrast'
+  | null;
 
 @Injectable({ providedIn: 'root' })
 export class AssignmentsStore {
-  readonly assignments = signal<Assignment[]>(seedAssignments());
-  readonly selectedAssignmentId = signal<string | null>(null);
+  private readonly assignmentSvc = inject(AssignmentService);
+  private readonly departmentSvc = inject(DepartmentService);
+  private readonly tenantSvc = inject(TenantService);
+  private readonly employeeSvc = inject(TenantEmployeeService);
+  private readonly testSvc = inject(TestService);
+  private readonly messages = inject(MessageService);
 
-  readonly selectedAssignment = computed(() => {
-    const id = this.selectedAssignmentId();
-    if (!id) {
-      return null;
-    }
-    return this.assignments().find((a) => a.id === id) ?? null;
-  });
+  // ── Shared dropdown options ───────────────────────────────────────────────
+  readonly tenants = signal<TenantResponseDto[]>([]);
+  readonly tests = signal<TestListItemResponseDto[]>([]);
+  readonly tenantsLoading = signal(false);
+  readonly testsLoading = signal(false);
 
-  readonly assignmentCount = computed(() => this.assignments().length);
+  // ── "Assign Test" form state ──────────────────────────────────────────────
+  readonly assignTenantId = signal<string | null>(null);
+  readonly assignDepartments = signal<DepartmentResponseDto[]>([]);
+  readonly assignDepartmentsLoading = signal(false);
+  readonly assignDepartmentId = signal<string | null>(null);
+  readonly assignTestId = signal<string | null>(null);
+  readonly assigning = signal(false);
 
-  selectAssignment(assignmentId: string | null): void {
-    this.selectedAssignmentId.set(assignmentId);
+  readonly canAssign = computed(
+    () => !!this.assignDepartmentId() && !!this.assignTestId(),
+  );
+
+  // ── Employee table filter state ───────────────────────────────────────────
+  readonly filterTenantId = signal<string | null>(null);
+  readonly filterDepartments = signal<DepartmentResponseDto[]>([]);
+  readonly filterDepartmentId = signal<string | null>(null);
+
+  // ── Employee table data ───────────────────────────────────────────────────
+  readonly employees = signal<TenantEmployeeListItemDto[]>([]);
+  readonly employeesLoading = signal(false);
+  readonly employeesTotalRecords = signal(0);
+  readonly employeePage = signal(1);
+  readonly employeePageSize = signal(20);
+
+  // ── Assignment dialog state ───────────────────────────────────────────────
+  readonly dialogEmployee = signal<TenantEmployeeListItemDto | null>(null);
+  readonly dialogAssignments = signal<EmployeeAssignmentDto[]>([]);
+  readonly dialogLoading = signal(false);
+  readonly dialogVisible = signal(false);
+
+  // ── Init loaders ─────────────────────────────────────────────────────────
+
+  loadTenants(): void {
+    this.tenantsLoading.set(true);
+    this.tenantSvc
+      .list()
+      .pipe(
+        finalize(() => this.tenantsLoading.set(false)),
+        catchError((err) => {
+          this.messages.add({
+            severity: 'error',
+            summary: 'Could not load tenants',
+            detail: apiErrorMessage(err, 'Request failed'),
+          });
+          return of([] as TenantResponseDto[]);
+        }),
+      )
+      .subscribe((rows) => this.tenants.set(rows));
   }
 
-  counts(assignment: Assignment): {
-    total: number;
-    opened: number;
-    completed: number;
-  } {
-    const total = assignment.participants.length;
-    const opened = assignment.participants.filter((p) => p.openedAt != null).length;
-    const completed = assignment.participants.filter((p) => p.completedAt != null).length;
-    return { total, opened, completed };
+  loadTests(): void {
+    this.testsLoading.set(true);
+    this.testSvc
+      .list()
+      .pipe(
+        finalize(() => this.testsLoading.set(false)),
+        catchError((err) => {
+          this.messages.add({
+            severity: 'error',
+            summary: 'Could not load tests',
+            detail: apiErrorMessage(err, 'Request failed'),
+          });
+          return of([] as TestListItemResponseDto[]);
+        }),
+      )
+      .subscribe((rows) => this.tests.set(rows));
   }
 
-  rollupStatus(assignment: Assignment): AssignmentRollupStatus {
-    const { total, completed, opened } = this.counts(assignment);
-    if (total === 0) {
-      return 'not_started';
+  // ── "Assign" form logic ───────────────────────────────────────────────────
+
+  selectAssignTenant(tenantId: string | null): void {
+    this.assignTenantId.set(tenantId);
+    this.assignDepartmentId.set(null);
+    this.assignDepartments.set([]);
+    if (!tenantId) {
+      return;
     }
-    if (completed === total) {
-      return 'completed';
-    }
-    if (opened === 0 && completed === 0) {
-      return 'not_started';
-    }
-    return 'in_progress';
+    this.assignDepartmentsLoading.set(true);
+    this.departmentSvc
+      .list(tenantId)
+      .pipe(
+        finalize(() => this.assignDepartmentsLoading.set(false)),
+        catchError((err) => {
+          this.messages.add({
+            severity: 'error',
+            summary: 'Could not load departments',
+            detail: apiErrorMessage(err, 'Request failed'),
+          });
+          return of([] as DepartmentResponseDto[]);
+        }),
+      )
+      .subscribe((rows) => this.assignDepartments.set(rows));
   }
 
-  rollupStatusLabel(rollup: AssignmentRollupStatus): string {
-    switch (rollup) {
+  assign(): void {
+    const departmentId = this.assignDepartmentId();
+    const testId = this.assignTestId();
+    if (!departmentId || !testId) {
+      return;
+    }
+    const payload: AssignmentCreateRequestDto = { departmentId, testId };
+    const tenantId = this.assignTenantId();
+    if (tenantId) {
+      payload.tenantId = tenantId;
+    }
+    this.assigning.set(true);
+    this.assignmentSvc
+      .create(payload)
+      .pipe(
+        finalize(() => this.assigning.set(false)),
+        catchError((err) => {
+          this.messages.add({
+            severity: 'error',
+            summary: 'Assignment failed',
+            detail: apiErrorMessage(err, 'Request failed'),
+          });
+          throw err;
+        }),
+      )
+      .subscribe((res) => {
+        this.messages.add({
+          severity: 'success',
+          summary: 'Test assigned!',
+          detail: `${res.created} employee(s) newly assigned · ${res.skipped} already had this test.`,
+        });
+        this.assignDepartmentId.set(null);
+        this.assignTestId.set(null);
+        // Refresh the employee table if we're looking at the same tenant.
+        if (tenantId && this.filterTenantId() === tenantId) {
+          this.loadEmployees(1);
+        }
+      });
+  }
+
+  // ── Employee filter logic ─────────────────────────────────────────────────
+
+  selectFilterTenant(tenantId: string | null): void {
+    this.filterTenantId.set(tenantId);
+    this.filterDepartmentId.set(null);
+    this.filterDepartments.set([]);
+    this.employees.set([]);
+    this.employeesTotalRecords.set(0);
+    if (!tenantId) {
+      return;
+    }
+    this.departmentSvc
+      .list(tenantId)
+      .pipe(catchError(() => of([] as DepartmentResponseDto[])))
+      .subscribe((rows) => this.filterDepartments.set(rows));
+    this.loadEmployees(1);
+  }
+
+  selectFilterDepartment(departmentId: string | null): void {
+    this.filterDepartmentId.set(departmentId);
+    if (this.filterTenantId()) {
+      this.loadEmployees(1);
+    }
+  }
+
+  loadEmployees(page: number): void {
+    const tenantId = this.filterTenantId();
+    if (!tenantId) {
+      return;
+    }
+    this.employeePage.set(page);
+    this.employeesLoading.set(true);
+    this.employeeSvc
+      .listPaged(tenantId, {
+        pageNumber: page,
+        pageSize: this.employeePageSize(),
+        departmentId: this.filterDepartmentId() ?? undefined,
+      })
+      .pipe(
+        finalize(() => this.employeesLoading.set(false)),
+        catchError((err) => {
+          this.messages.add({
+            severity: 'error',
+            summary: 'Could not load employees',
+            detail: apiErrorMessage(err, 'Request failed'),
+          });
+          return of({
+            items: [] as TenantEmployeeListItemDto[],
+            totalRecords: 0,
+            pageNumber: page,
+            pageSize: this.employeePageSize(),
+            totalPages: 0,
+            hasNextPage: false,
+            hasPreviousPage: false,
+          });
+        }),
+      )
+      .subscribe((res) => {
+        this.employees.set(res.items);
+        this.employeesTotalRecords.set(res.totalRecords);
+      });
+  }
+
+  // ── Assignment dialog ─────────────────────────────────────────────────────
+
+  openAssignmentDialog(employee: TenantEmployeeListItemDto): void {
+    this.dialogEmployee.set(employee);
+    this.dialogAssignments.set([]);
+    this.dialogVisible.set(true);
+    this.dialogLoading.set(true);
+    this.employeeSvc
+      .getAssignments(employee.id)
+      .pipe(
+        finalize(() => this.dialogLoading.set(false)),
+        catchError((err) => {
+          this.messages.add({
+            severity: 'error',
+            summary: 'Could not load assignments',
+            detail: apiErrorMessage(err, 'Request failed'),
+          });
+          return of([] as EmployeeAssignmentDto[]);
+        }),
+      )
+      .subscribe((rows) => this.dialogAssignments.set(rows));
+  }
+
+  closeAssignmentDialog(): void {
+    this.dialogVisible.set(false);
+    this.dialogEmployee.set(null);
+    this.dialogAssignments.set([]);
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  magicLink(accessKey: string): string {
+    return `${window.location.origin}/assessment/invite/${accessKey}`;
+  }
+
+  statusSeverity(status: string): AssignmentStatusSeverity {
+    switch ((status ?? '').toLowerCase()) {
       case 'completed':
-        return 'Everyone done';
+        return 'success';
+      case 'inprogress':
+      case 'in_progress':
+        return 'info';
+      case 'pending':
+        return 'secondary';
+      default:
+        return 'secondary';
+    }
+  }
+
+  statusLabel(status: string): string {
+    switch ((status ?? '').toLowerCase()) {
+      case 'completed':
+        return 'Completed';
+      case 'inprogress':
       case 'in_progress':
         return 'In progress';
+      case 'pending':
+        return 'Pending';
       default:
-        return 'Not started';
+        return status ?? '—';
     }
-  }
-
-  participantRowStatus(participant: AssignmentParticipant): ParticipantRowStatus {
-    if (participant.completedAt) {
-      return 'completed';
-    }
-    if (participant.openedAt) {
-      return 'in_progress';
-    }
-    return 'pending';
-  }
-
-  /**
-   * Local-only mutations for future wiring; optional for demos.
-   */
-  markParticipantOpened(assignmentId: string, tenantEmployeeId: string): void {
-    const stamp = new Date().toISOString();
-    this.assignments.update((list) =>
-      list.map((a) => {
-        if (a.id !== assignmentId) {
-          return a;
-        }
-        return {
-          ...a,
-          participants: a.participants.map((p) =>
-            p.tenantEmployeeId === tenantEmployeeId && !p.openedAt
-              ? { ...p, openedAt: stamp }
-              : p,
-          ),
-        };
-      }),
-    );
-  }
-
-  markParticipantCompleted(
-    assignmentId: string,
-    tenantEmployeeId: string,
-    resultLabel: string,
-  ): void {
-    const stamp = new Date().toISOString();
-    this.assignments.update((list) =>
-      list.map((a) => {
-        if (a.id !== assignmentId) {
-          return a;
-        }
-        return {
-          ...a,
-          participants: a.participants.map((p) =>
-            p.tenantEmployeeId === tenantEmployeeId
-              ? {
-                  ...p,
-                  openedAt: p.openedAt ?? stamp,
-                  completedAt: stamp,
-                  resultLabel,
-                }
-              : p,
-          ),
-        };
-      }),
-    );
-  }
-
-  /** Scaffold for when assignments are created from distribution UI. */
-  addAssignmentDraft(payload: {
-    testTitle: string;
-    tenantId: string;
-    tenantName: string;
-    departmentScopeLabel: string;
-    participants: Omit<
-      AssignmentParticipant,
-      'openedAt' | 'completedAt' | 'resultLabel'
-    >[];
-  }): string {
-    const id = createId();
-    const row: Assignment = {
-      id,
-      testTitle: payload.testTitle.trim(),
-      tenantId: payload.tenantId,
-      tenantName: payload.tenantName,
-      departmentScopeLabel: payload.departmentScopeLabel.trim(),
-      lifecycleStatus: 'draft',
-      createdAt: new Date().toISOString(),
-      participants: payload.participants.map((p) => ({
-        ...p,
-        openedAt: null,
-        completedAt: null,
-        resultLabel: null,
-      })),
-    };
-    this.assignments.update((list) => [row, ...list]);
-    return id;
   }
 }

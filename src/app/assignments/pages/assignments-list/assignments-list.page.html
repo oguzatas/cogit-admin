@@ -1,64 +1,281 @@
 <div class="flex flex-col gap-4">
-    <div class="card border-round-2xl overflow-hidden p-0 border-1 surface-border surface-50 dark:surface-900 shadow-1">
-        <div class="relative px-4 py-6 md:px-6 md:py-8">
+
+    <!-- ── Page header ──────────────────────────────────────────────────── -->
+    <div class="card border-round-2xl overflow-hidden p-0 border-1 surface-border shadow-1">
+        <div class="px-4 py-6 md:px-6 md:py-8">
             <div class="flex flex-col items-center text-center gap-3 max-w-48rem mx-auto px-2 md:px-14">
-                <span
-                    class="inline-flex items-center justify-center px-3 py-1 border-round-md text-xs font-bold uppercase tracking-wide text-primary surface-ground border-1 border-primary"
-                >
-                    Tracking
+                <span class="inline-flex items-center justify-center px-3 py-1 border-round-md text-xs font-bold uppercase tracking-wide text-primary surface-ground border-1 border-primary">
+                    Assignments
                 </span>
-                <h1 class="m-0 font-bold text-3xl md:text-4xl text-color leading-tight">Assignments</h1>
+                <h1 class="m-0 font-bold text-3xl md:text-4xl text-color leading-tight">Assign &amp; Track</h1>
                 <p class="m-0 text-muted-color text-base md:text-lg max-w-36rem line-height-3">
-                    Monitor who was assigned each test, who has opened it, and completion with tenant employee results — all in one place.
+                    Bulk-assign tests to entire departments and retrieve per-employee magic links — no email server required.
                 </p>
             </div>
         </div>
     </div>
 
-    <div class="card">
-        <div class="font-semibold text-lg mb-4">All assignments</div>
-        <p-table [value]="store.assignments()" [rowHover]="true" dataKey="id" [tableStyle]="{ 'min-width': '56rem' }">
+    <!-- ── Assign Test to Department ───────────────────────────────────── -->
+    <div class="card flex flex-col gap-5">
+        <div>
+            <div class="font-semibold text-xl">Assign Test to Department</div>
+            <div class="text-sm text-muted-color mt-1">Select a tenant, department, and test, then click "Assign".</div>
+        </div>
+
+        <p-fluid>
+            <div class="grid grid-cols-12 gap-4">
+                <!-- Tenant -->
+                <div class="col-span-12 md:col-span-4 flex flex-col gap-2">
+                    <label class="font-semibold">Tenant <span class="text-red-500">*</span></label>
+                    <p-select
+                        [options]="store.tenants()"
+                        optionLabel="name"
+                        optionValue="id"
+                        placeholder="Select tenant…"
+                        [ngModel]="store.assignTenantId()"
+                        (ngModelChange)="onAssignTenantChange($event)"
+                        [loading]="store.tenantsLoading()"
+                        [showClear]="true"
+                        appendTo="body"
+                        fluid
+                    />
+                </div>
+
+                <!-- Department -->
+                <div class="col-span-12 md:col-span-4 flex flex-col gap-2">
+                    <label class="font-semibold">Department <span class="text-red-500">*</span></label>
+                    <p-select
+                        [options]="store.assignDepartments()"
+                        optionLabel="name"
+                        optionValue="id"
+                        placeholder="Select department…"
+                        [ngModel]="store.assignDepartmentId()"
+                        (ngModelChange)="store.assignDepartmentId.set($event)"
+                        [disabled]="!store.assignTenantId()"
+                        [loading]="store.assignDepartmentsLoading()"
+                        [showClear]="true"
+                        appendTo="body"
+                        fluid
+                    />
+                </div>
+
+                <!-- Test -->
+                <div class="col-span-12 md:col-span-4 flex flex-col gap-2">
+                    <label class="font-semibold">Test <span class="text-red-500">*</span></label>
+                    <p-select
+                        [options]="store.tests()"
+                        optionLabel="name"
+                        optionValue="id"
+                        placeholder="Select test…"
+                        [ngModel]="store.assignTestId()"
+                        (ngModelChange)="store.assignTestId.set($event)"
+                        [loading]="store.testsLoading()"
+                        [showClear]="true"
+                        appendTo="body"
+                        fluid
+                    />
+                </div>
+            </div>
+        </p-fluid>
+
+        <div class="flex justify-end border-top-1 surface-border pt-4">
+            <p-button
+                label="Assign"
+                icon="pi pi-check"
+                [disabled]="!store.canAssign()"
+                [loading]="store.assigning()"
+                (onClick)="store.assign()"
+            />
+        </div>
+    </div>
+
+    <!-- ── Employee Table ────────────────────────────────────────────────── -->
+    <div class="card flex flex-col gap-5">
+        <div>
+            <div class="font-semibold text-xl">Employees &amp; Magic Links</div>
+            <div class="text-sm text-muted-color mt-1">
+                Filter by tenant and department, then click <strong>"View Assignments"</strong> on any employee to see their assignment links.
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <p-fluid>
+            <div class="grid grid-cols-12 gap-4">
+                <div class="col-span-12 md:col-span-4 flex flex-col gap-2">
+                    <label class="font-semibold">Tenant</label>
+                    <p-select
+                        [options]="store.tenants()"
+                        optionLabel="name"
+                        optionValue="id"
+                        placeholder="Select tenant…"
+                        [ngModel]="store.filterTenantId()"
+                        (ngModelChange)="onFilterTenantChange($event)"
+                        [loading]="store.tenantsLoading()"
+                        [showClear]="true"
+                        appendTo="body"
+                        fluid
+                    />
+                </div>
+                <div class="col-span-12 md:col-span-4 flex flex-col gap-2">
+                    <label class="font-semibold">Department</label>
+                    <p-select
+                        [options]="store.filterDepartments()"
+                        optionLabel="name"
+                        optionValue="id"
+                        placeholder="All departments"
+                        [ngModel]="store.filterDepartmentId()"
+                        (ngModelChange)="onFilterDepartmentChange($event)"
+                        [disabled]="!store.filterTenantId()"
+                        [showClear]="true"
+                        appendTo="body"
+                        fluid
+                    />
+                </div>
+            </div>
+        </p-fluid>
+
+        <!-- Table -->
+        <p-table
+            [value]="store.employees()"
+            [loading]="store.employeesLoading()"
+            [lazy]="true"
+            (onLazyLoad)="onEmployeeLazyLoad($event)"
+            [totalRecords]="store.employeesTotalRecords()"
+            [paginator]="true"
+            [rows]="store.employeePageSize()"
+            [rowHover]="true"
+            dataKey="id"
+            [tableStyle]="{ 'min-width': '42rem' }"
+        >
             <ng-template #header>
                 <tr>
-                    <th style="min-width: 12rem">Test</th>
-                    <th style="min-width: 10rem">Tenant</th>
-                    <th style="min-width: 10rem">Scope</th>
-                    <th style="min-width: 8rem">Admin status</th>
-                    <th style="min-width: 9rem">Progress</th>
-                    <th style="min-width: 7rem">Opened</th>
-                    <th style="min-width: 7rem">Completed</th>
-                    <th style="min-width: 9rem">Created</th>
-                    <th style="width: 6rem"></th>
+                    <th style="min-width: 12rem">Name</th>
+                    <th style="min-width: 14rem">Email</th>
+                    <th style="min-width: 10rem">Department</th>
+                    <th style="width: 10rem"></th>
                 </tr>
             </ng-template>
-            <ng-template #body let-a>
-                <tr (click)="openDetail(a)" class="cursor-pointer">
-                    <td class="font-semibold">{{ a.testTitle }}</td>
-                    <td>{{ a.tenantName }}</td>
-                    <td class="text-sm text-muted-color">{{ a.departmentScopeLabel }}</td>
+
+            <ng-template #body let-emp>
+                <tr>
+                    <td class="font-medium">{{ emp.fullName }}</td>
+                    <td class="text-sm text-muted-color">{{ emp.email }}</td>
+                    <td class="text-sm text-muted-color">{{ emp.departmentName }}</td>
                     <td>
-                        <p-tag [value]="a.lifecycleStatus" [severity]="lifecycleSeverity(a.lifecycleStatus)" />
-                    </td>
-                    <td>
-                        <p-tag [value]="store.rollupStatusLabel(store.rollupStatus(a))" [severity]="rollupSeverity(store.rollupStatus(a))" />
-                    </td>
-                    <td>
-                        {{ store.counts(a).opened }} / {{ store.counts(a).total }}
-                    </td>
-                    <td>
-                        {{ store.counts(a).completed }} / {{ store.counts(a).total }}
-                    </td>
-                    <td class="text-sm text-muted-color">{{ a.createdAt | date: 'mediumDate' }}</td>
-                    <td (click)="$event.stopPropagation()">
-                        <p-button icon="pi pi-eye" [rounded]="true" [outlined]="true" severity="secondary" (onClick)="openDetail(a)" aria-label="View assignment" />
+                        <p-button
+                            label="View Assignments"
+                            icon="pi pi-link"
+                            severity="secondary"
+                            [outlined]="true"
+                            size="small"
+                            styleClass="whitespace-nowrap"
+                            (onClick)="openDialog(emp)"
+                        />
                     </td>
                 </tr>
             </ng-template>
+
             <ng-template #emptymessage>
                 <tr>
-                    <td colspan="9" class="text-center text-muted-color py-6">No assignments yet.</td>
+                    <td colspan="4" class="text-center text-muted-color py-8">
+                        @if (!store.filterTenantId()) {
+                            <div class="flex flex-col items-center gap-2">
+                                <i class="pi pi-filter text-2xl opacity-40"></i>
+                                <span>Select a tenant above to browse employees.</span>
+                            </div>
+                        } @else {
+                            No employees found for the selected filters.
+                        }
+                    </td>
                 </tr>
             </ng-template>
         </p-table>
     </div>
+
 </div>
+
+<!-- ── Employee Assignments Dialog ───────────────────────────────────────── -->
+<p-dialog
+    [header]="dialogHeader()"
+    [visible]="store.dialogVisible()"
+    (onHide)="onDialogHide()"
+    [modal]="true"
+    [draggable]="false"
+    [resizable]="false"
+    [style]="{ width: 'min(64rem, 95vw)' }"
+    [contentStyle]="{ padding: '0' }"
+>
+    @if (store.dialogLoading()) {
+        <div class="flex items-center justify-center py-12 gap-3">
+            <p-progressSpinner styleClass="w-8 h-8" />
+            <span class="text-muted-color">Loading assignments…</span>
+        </div>
+    } @else {
+        <p-table
+            [value]="store.dialogAssignments()"
+            dataKey="id"
+            [rowHover]="true"
+            [tableStyle]="{ 'min-width': '36rem' }"
+        >
+            <ng-template #header>
+                <tr>
+                    <th style="min-width: 14rem">Test</th>
+                    <th style="min-width: 9rem">Status</th>
+                    <th>Magic Link</th>
+                    <th style="width: 4.5rem"></th>
+                </tr>
+            </ng-template>
+
+            <ng-template #body let-a>
+                <tr>
+                    <td class="font-medium">{{ a.testName }}</td>
+                    <td>
+                        <p-tag
+                            [value]="store.statusLabel(a.status)"
+                            [severity]="store.statusSeverity(a.status)"
+                        />
+                    </td>
+                    <td>
+                        <code class="text-xs select-all text-muted-color break-all">
+                            {{ store.magicLink(a.accessKey) }}
+                        </code>
+                    </td>
+                    <td>
+                        <p-button
+                            icon="pi pi-copy"
+                            [rounded]="true"
+                            [outlined]="true"
+                            severity="secondary"
+                            size="small"
+                            pTooltip="Copy magic link"
+                            tooltipPosition="left"
+                            aria-label="Copy magic link"
+                            (onClick)="copyMagicLink(a.accessKey)"
+                        />
+                    </td>
+                </tr>
+            </ng-template>
+
+            <ng-template #emptymessage>
+                <tr>
+                    <td colspan="4" class="text-center text-muted-color py-8">
+                        <div class="flex flex-col items-center gap-2">
+                            <i class="pi pi-inbox text-2xl opacity-40"></i>
+                            <span>No assignments for this employee.</span>
+                        </div>
+                    </td>
+                </tr>
+            </ng-template>
+        </p-table>
+    }
+
+    <ng-template #footer>
+        <p-button
+            label="Close"
+            icon="pi pi-times"
+            severity="secondary"
+            [outlined]="true"
+            (onClick)="onDialogHide()"
+        />
+    </ng-template>
+</p-dialog>

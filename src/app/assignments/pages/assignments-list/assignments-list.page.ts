@@ -1,61 +1,86 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
-import { Router, RouterModule } from '@angular/router';
+import { Component, computed, inject, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
+import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
-import { RippleModule } from 'primeng/ripple';
-import { TableModule } from 'primeng/table';
+import { DialogModule } from 'primeng/dialog';
+import { FluidModule } from 'primeng/fluid';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { SelectModule } from 'primeng/select';
+import { TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
-import { Assignment } from '@/app/assignments/assignments.models';
+import { TooltipModule } from 'primeng/tooltip';
 import { AssignmentsStore } from '@/app/assignments/assignments.store';
+import type { TenantEmployeeListItemDto } from '@/app/core/api/models/tenant-employee.dto';
 
 @Component({
   selector: 'app-assignments-list-page',
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     RouterModule,
     ButtonModule,
-    RippleModule,
+    DialogModule,
+    FluidModule,
+    ProgressSpinnerModule,
+    SelectModule,
     TableModule,
     TagModule,
+    TooltipModule,
   ],
   templateUrl: './assignments-list.page.html',
 })
-export class AssignmentsListPage {
+export class AssignmentsListPage implements OnInit {
   readonly store = inject(AssignmentsStore);
-  private readonly router = inject(Router);
+  private readonly messages = inject(MessageService);
 
-  openDetail(assignment: Assignment): void {
-    this.store.selectAssignment(assignment.id);
-    this.router.navigate(['/assignments', assignment.id]);
+  readonly dialogHeader = computed(() => {
+    const emp = this.store.dialogEmployee();
+    return emp ? `${emp.fullName} — Assignments` : 'Employee Assignments';
+  });
+
+  ngOnInit(): void {
+    this.store.loadTenants();
+    this.store.loadTests();
   }
 
-  lifecycleSeverity(
-    s: Assignment['lifecycleStatus'],
-  ): 'success' | 'info' | 'secondary' | 'warn' | 'danger' | 'contrast' | null {
-    switch (s) {
-      case 'active':
-        return 'success';
-      case 'draft':
-        return 'warn';
-      case 'closed':
-        return 'secondary';
-      default:
-        return 'info';
-    }
+  onAssignTenantChange(tenantId: string | null): void {
+    this.store.selectAssignTenant(tenantId);
   }
 
-  rollupSeverity(
-    r: ReturnType<AssignmentsStore['rollupStatus']>,
-  ): 'success' | 'info' | 'secondary' | 'warn' | 'danger' | 'contrast' | null {
-    switch (r) {
-      case 'completed':
-        return 'success';
-      case 'in_progress':
-        return 'info';
-      default:
-        return 'secondary';
-    }
+  onFilterTenantChange(tenantId: string | null): void {
+    this.store.selectFilterTenant(tenantId);
   }
 
+  onFilterDepartmentChange(departmentId: string | null): void {
+    this.store.selectFilterDepartment(departmentId);
+  }
+
+  onEmployeeLazyLoad(event: TableLazyLoadEvent): void {
+    const pageSize = this.store.employeePageSize();
+    const page = Math.floor((event.first ?? 0) / pageSize) + 1;
+    this.store.loadEmployees(page);
+  }
+
+  openDialog(emp: TenantEmployeeListItemDto): void {
+    this.store.openAssignmentDialog(emp);
+  }
+
+  onDialogHide(): void {
+    this.store.closeAssignmentDialog();
+  }
+
+  copyMagicLink(accessKey: string): void {
+    const url = this.store.magicLink(accessKey);
+    navigator.clipboard.writeText(url).then(() => {
+      this.messages.add({
+        severity: 'success',
+        summary: 'Copied!',
+        detail: 'Magic link copied to clipboard.',
+        life: 2000,
+      });
+    });
+  }
 }

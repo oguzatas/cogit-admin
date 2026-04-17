@@ -92,12 +92,16 @@ export class TestsStore {
     );
   }
 
-  update$(id: string, body: TestUpdateRequestDto): Observable<TestResponseDto> {
+  update$(
+    id: string,
+    body: TestUpdateRequestDto,
+    options?: { successSummary?: string },
+  ): Observable<TestResponseDto> {
     return this.api.update(id, body).pipe(
       tap((updated) => {
         this.messages.add({
           severity: 'success',
-          summary: 'Test updated',
+          summary: options?.successSummary ?? 'Test updated',
           detail: updated.name,
         });
       }),

@@ -5,6 +5,7 @@ import { map } from 'rxjs/operators';
 import { normalizePagedTenantEmployeesResponse } from '@/app/core/api/mappers/tenant-employee.mapper';
 import { API_URL } from '../tokens/api-url.token';
 import type {
+  EmployeeAssignmentDto,
   PagedTenantEmployeesResponseDto,
   TenantEmployeeCreateRequestDto,
   TenantEmployeeResponseDto,
@@ -44,6 +45,12 @@ export class TenantEmployeeService {
     return this.http.post<TenantEmployeeResponseDto>(
       `${this.apiUrl}/api/TenantEmployees`,
       body,
+    );
+  }
+
+  getAssignments(employeeId: string): Observable<EmployeeAssignmentDto[]> {
+    return this.http.get<EmployeeAssignmentDto[]>(
+      `${this.apiUrl}/api/TenantEmployees/${encodeURIComponent(employeeId)}/assignments`,
     );
   }
 }

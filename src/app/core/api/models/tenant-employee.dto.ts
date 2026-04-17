@@ -49,3 +49,16 @@ export interface TenantEmployeesListQueryDto {
   /** When set, sent as query `departmentId`. */
   departmentId?: string;
 }
+
+/** Single row from GET `/api/TenantEmployees/{id}/assignments`. */
+export interface EmployeeAssignmentDto {
+  id: string;
+  testId: string;
+  testName: string;
+  /** Server status string, e.g. "Pending" | "InProgress" | "Completed". */
+  status: string;
+  /** Short token used to construct the magic link URL. */
+  accessKey: string;
+  assignedAt?: string | null;
+  completedAt?: string | null;
+}
