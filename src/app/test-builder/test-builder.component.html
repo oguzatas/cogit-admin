@@ -18,10 +18,75 @@
                 <ng-template #end>
                     <div class="flex flex-wrap items-center gap-2">
                         <p-button label="Add question" icon="pi pi-plus" severity="secondary" styleClass="whitespace-nowrap" (onClick)="startNewQuestion(questionTypeOptions[0]!.value)" />
+                        <p-button
+                            label="🛠️ Developer Mode"
+                            severity="secondary"
+                            [outlined]="true"
+                            styleClass="whitespace-nowrap"
+                            (onClick)="enterDeveloperMode()"
+                        />
                     </div>
                 </ng-template>
             </p-toolbar>
         </div>
+
+        @if (developerMode()) {
+            <!-- ── Developer Mode — JSON Editor ──────────────────────────────── -->
+            <div class="card flex flex-col gap-0 p-0 overflow-hidden json-editor-card">
+                <!-- Header bar -->
+                <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3 border-bottom-1 surface-border">
+                    <div class="flex items-center gap-3">
+                        <span class="text-lg font-semibold">🛠️ Developer Mode</span>
+                        <span class="text-sm text-muted-color">Edit the full blueprint as JSON — new items use <code>null</code> for <code>id</code></span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <p-button
+                            label="Exit"
+                            icon="pi pi-times"
+                            severity="secondary"
+                            [outlined]="true"
+                            size="small"
+                            (onClick)="exitDeveloperMode()"
+                        />
+                        <p-button
+                            label="🚀 Sync Blueprint"
+                            icon="pi pi-cloud-upload"
+                            [loading]="jsonSyncing()"
+                            [disabled]="jsonSyncing()"
+                            size="small"
+                            (onClick)="syncBlueprint()"
+                        />
+                    </div>
+                </div>
+
+                <!-- Error banner -->
+                @if (jsonError()) {
+                    <div class="flex items-start gap-2 px-5 py-3 json-error-banner">
+                        <i class="pi pi-exclamation-triangle mt-1 shrink-0"></i>
+                        <span class="text-sm font-mono">{{ jsonError() }}</span>
+                    </div>
+                }
+
+                <!-- Code editor textarea -->
+                <div class="json-editor-wrap">
+                    <textarea
+                        class="json-editor-textarea"
+                        spellcheck="false"
+                        autocomplete="off"
+                        autocorrect="off"
+                        autocapitalize="off"
+                        [ngModel]="jsonContent()"
+                        (ngModelChange)="jsonContent.set($event)"
+                    ></textarea>
+                </div>
+
+                <!-- Footer hint -->
+                <div class="px-5 py-2 border-top-1 surface-border flex items-center gap-4 text-xs text-muted-color">
+                    <span><kbd>variables</kbd> · <kbd>metrics</kbd> · <kbd>questions</kbd> arrays required at root</span>
+                    <span class="ml-auto">Keep existing <code>id</code> values to update · use <code>null</code> to create new items</span>
+                </div>
+            </div>
+        } @else {
 
         <div class="card p-0 overflow-hidden">
             <p-splitter [style]="{ minHeight: 'min(42rem, calc(100vh - 16rem))' }" [panelSizes]="[32, 68]" [minSizes]="[20, 40]">
@@ -212,6 +277,8 @@
         </div>
 
         <app-test-scoring-settings />
+
+        } <!-- end @else (!developerMode) -->
     }
 </p-fluid>
 

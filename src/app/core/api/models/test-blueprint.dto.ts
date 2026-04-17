@@ -155,3 +155,51 @@ export interface UpdateQuestionCommand {
   options: UpdateOptionDto[];
 }
 
+// ── PUT /api/Tests/{id}/blueprint-sync ───────────────────────────────────────
+// Bulk upsert command. Existing items keep their id; new items use id: null/0.
+
+export interface SyncVariableItem {
+  id?: ApiId | null;
+  name: string;
+  key: string;
+  defaultValue: number | string;
+}
+
+export interface SyncMetricItem {
+  id?: ApiId | null;
+  name: string;
+  key?: string;
+  formulaExpression: string;
+}
+
+export interface SyncOptionPointItem {
+  id?: ApiId | null;
+  testVariableId: ApiId;
+  points: number | string;
+}
+
+export interface SyncOptionItem {
+  id?: ApiId | null;
+  text: string;
+  numericValue: number | string | null;
+  orderIndex: number | string;
+  optionPoints: SyncOptionPointItem[];
+}
+
+export interface SyncQuestionItem {
+  id?: ApiId | null;
+  text: string;
+  questionType: QuestionType;
+  orderIndex: number | string;
+  variableKey: string;
+  settings: QuestionSettingsDto | null;
+  options: SyncOptionItem[];
+}
+
+/** Full blueprint upsert — sent to PUT `/api/Tests/{id}/blueprint-sync`. */
+export interface SyncTestBlueprintCommand {
+  variables: SyncVariableItem[];
+  metrics: SyncMetricItem[];
+  questions: SyncQuestionItem[];
+}
+

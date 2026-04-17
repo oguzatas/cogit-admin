@@ -12,6 +12,7 @@ import type {
   CreateQuestionCommand,
   CreateScoringScaleCommand,
   CreateTestVariableCommand,
+  SyncTestBlueprintCommand,
   UpdateQuestionCommand,
   UpdateScoringScaleCommand,
   UpdateTestVariableCommand,
@@ -140,6 +141,13 @@ export class TestBlueprintService {
   deleteQuestion(id: string): Observable<void> {
     return this.http.delete<void>(
       `${this.apiUrl}/api/Questions/${encodeURIComponent(id)}`,
+    );
+  }
+
+  syncBlueprint(testId: string, payload: SyncTestBlueprintCommand): Observable<void> {
+    return this.http.put<void>(
+      `${this.apiUrl}/api/Tests/${encodeURIComponent(testId)}/blueprint-sync`,
+      payload,
     );
   }
 }

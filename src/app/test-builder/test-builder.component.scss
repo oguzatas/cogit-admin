@@ -20,6 +20,75 @@
   }
 }
 
+/* ── Developer Mode JSON Editor ─────────────────────────── */
+.json-editor-card {
+  min-height: min(52rem, calc(100vh - 14rem));
+  display: flex;
+  flex-direction: column;
+}
+
+.json-error-banner {
+  background: color-mix(in srgb, var(--p-red-500) 12%, transparent);
+  color: var(--p-red-600);
+  border-bottom: 1px solid color-mix(in srgb, var(--p-red-500) 25%, transparent);
+}
+
+.app-dark .json-error-banner {
+  color: var(--p-red-400);
+}
+
+.json-editor-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #1e1e1e;
+}
+
+.json-editor-textarea {
+  flex: 1;
+  width: 100%;
+  min-height: min(44rem, calc(100vh - 22rem));
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', 'Menlo', monospace;
+  font-size: 13px;
+  line-height: 1.65;
+  padding: 1.25rem 1.5rem;
+  border: none;
+  outline: none;
+  resize: none;
+  tab-size: 2;
+  caret-color: #aeafad;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+
+  &::selection {
+    background: #264f78;
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow: inset 0 0 0 2px rgba(86, 156, 214, 0.35);
+  }
+}
+
+kbd {
+  display: inline-block;
+  padding: 0.1em 0.45em;
+  font-family: inherit;
+  font-size: 0.85em;
+  background: var(--p-surface-100);
+  border: 1px solid var(--p-surface-300);
+  border-radius: 4px;
+}
+
+.app-dark kbd {
+  background: var(--p-surface-800);
+  border-color: var(--p-surface-600);
+}
+
 /* ── CDK drag ───────────────────────────────────────────── */
 .cdk-drag-preview {
   box-sizing: border-box;

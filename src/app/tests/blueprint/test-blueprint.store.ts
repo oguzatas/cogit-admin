@@ -13,6 +13,7 @@ import type {
   CreateQuestionCommand,
   CreateScoringScaleCommand,
   CreateTestVariableCommand,
+  SyncTestBlueprintCommand,
   UpdateQuestionCommand,
   UpdateScoringScaleCommand,
   UpdateTestVariableCommand,
@@ -339,6 +340,37 @@ export class TestBlueprintStore {
         this.messages.add({
           severity: 'error',
           summary: 'Could not delete question',
+          detail: apiErrorMessage(err, 'Request failed'),
+        });
+        throw err;
+      }),
+    );
+  }
+
+  /**
+   * Sends the full blueprint payload to `PUT /api/Tests/{id}/blueprint-sync`,
+   * then re-hydrates all signals so the visual builder reflects the new state.
+   */
+  syncBlueprint$(payload: SyncTestBlueprintCommand): Observable<void> {
+    const tid = this.testId();
+    if (!tid) {
+      throw new Error('testId is required');
+    }
+    this.saving.set(true);
+    return this.api.syncBlueprint(tid, payload).pipe(
+      switchMap(() => this.hydrate$(tid)),
+      tap(() =>
+        this.messages.add({
+          severity: 'success',
+          summary: 'Blueprint synced',
+          detail: 'All changes have been applied and the builder has been refreshed.',
+        }),
+      ),
+      finalize(() => this.saving.set(false)),
+      catchError((err) => {
+        this.messages.add({
+          severity: 'error',
+          summary: 'Sync failed',
           detail: apiErrorMessage(err, 'Request failed'),
         });
         throw err;

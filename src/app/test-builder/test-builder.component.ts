@@ -22,6 +22,7 @@ import type {
   CreateQuestionCommand,
   CreateOptionDto,
   CreateOptionPointDto,
+  SyncTestBlueprintCommand,
   UpdateQuestionCommand,
   UpdateOptionDto,
   UpdateOptionPointDto,
@@ -75,6 +76,12 @@ export class TestBuilderComponent {
       >;
     }) | null
   >(null);
+
+  // ── Developer Mode (JSON editor) ─────────────────────────────────────────
+  readonly developerMode = signal(false);
+  readonly jsonContent = signal('');
+  readonly jsonSyncing = signal(false);
+  readonly jsonError = signal<string | null>(null);
 
   readonly testVariables = computed(() => this.blueprint.variables());
 
@@ -375,6 +382,97 @@ export class TestBuilderComponent {
       return 'No text';
     }
     return t.length <= maxLen ? t : `${t.slice(0, maxLen)}…`;
+  }
+
+  // ── Developer Mode ────────────────────────────────────────────────────────
+
+  enterDeveloperMode(): void {
+    const payload: SyncTestBlueprintCommand = {
+      variables: this.blueprint.variables().map((v) => ({
+        id: v.id,
+        name: v.name,
+        key: v.key,
+        defaultValue: v.defaultValue,
+      })),
+      metrics: this.blueprint.metrics().map((m) => ({
+        id: m.id,
+        name: m.name,
+        key: m.key,
+        formulaExpression: m.formulaExpression,
+      })),
+      questions: this.blueprint.questions().map((q) => ({
+        id: q.id,
+        text: q.text,
+        questionType: toQuestionTypeEnum(q.questionType as string | number),
+        orderIndex: q.orderIndex,
+        variableKey: q.variableKey,
+        settings: q.settings,
+        options: q.options.map((o) => ({
+          id: o.id,
+          text: o.text,
+          numericValue: o.numericValue,
+          orderIndex: o.orderIndex,
+          optionPoints: o.optionPoints.map((p) => ({
+            id: p.id,
+            testVariableId: p.testVariableId,
+            points: p.points,
+          })),
+        })),
+      })),
+    };
+    this.jsonContent.set(JSON.stringify(payload, null, 2));
+    this.jsonError.set(null);
+    this.developerMode.set(true);
+  }
+
+  exitDeveloperMode(): void {
+    this.developerMode.set(false);
+    this.jsonError.set(null);
+  }
+
+  syncBlueprint(): void {
+    const tid = this.testId();
+    if (!tid) {
+      return;
+    }
+    let payload: SyncTestBlueprintCommand;
+    try {
+      payload = JSON.parse(this.jsonContent()) as SyncTestBlueprintCommand;
+    } catch (e) {
+      this.jsonError.set(
+        'Invalid JSON — ' + (e instanceof Error ? e.message : String(e)),
+      );
+      return;
+    }
+    if (
+      !payload ||
+      typeof payload !== 'object' ||
+      !Array.isArray(payload.variables) ||
+      !Array.isArray(payload.metrics) ||
+      !Array.isArray(payload.questions)
+    ) {
+      this.jsonError.set(
+        'JSON must be an object with "variables", "metrics", and "questions" arrays.',
+      );
+      return;
+    }
+    this.jsonError.set(null);
+    this.jsonSyncing.set(true);
+    this.blueprint.syncBlueprint$(payload).subscribe({
+      next: () => {
+        this.jsonSyncing.set(false);
+        this.developerMode.set(false);
+        const first = this.blueprint.questions()[0];
+        if (first) {
+          this.selectQuestion(first.id);
+        } else {
+          this.questionDraft.set(null);
+        }
+      },
+      error: () => {
+        this.jsonSyncing.set(false);
+      },
+    });
   }
 }
 
