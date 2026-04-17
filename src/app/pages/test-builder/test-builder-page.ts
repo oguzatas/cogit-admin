@@ -1,12 +1,15 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { map } from 'rxjs/operators';
-import { take } from 'rxjs/operators';
+import { map, take } from 'rxjs/operators';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
+import { FluidModule } from 'primeng/fluid';
+import { InputTextModule } from 'primeng/inputtext';
 import { TagModule } from 'primeng/tag';
+import { TextareaModule } from 'primeng/textarea';
 import { TestBuilderComponent } from '@/app/test-builder/test-builder.component';
 import { TestBuilderStore } from '@/app/test-builder/test-builder.store';
 import type { TestBuilderDraft } from '@/app/test-builder/test-builder.models';
@@ -15,26 +18,37 @@ import { TestsStore } from '@/app/pages/tests/tests.store';
 @Component({
   selector: 'app-test-builder-page',
   standalone: true,
-  imports: [CommonModule, RouterModule, ButtonModule, TagModule, TestBuilderComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterModule,
+    FluidModule,
+    ButtonModule,
+    InputTextModule,
+    TextareaModule,
+    TagModule,
+    TestBuilderComponent,
+  ],
   template: `
     <div class="flex flex-col gap-4">
-      <div class="card flex flex-col gap-3">
+
+      <!-- ── Page header / nav bar ── -->
+      <div class="card flex flex-col gap-4">
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <div class="flex flex-wrap items-center gap-2 min-w-0">
+          <div class="flex flex-wrap items-center gap-3 min-w-0">
             <p-button
               label="Back"
               icon="pi pi-arrow-left"
               severity="secondary"
               [outlined]="true"
               [rounded]="true"
-              styleClass="font-semibold"
               (onClick)="goBack()"
             />
             <div class="flex flex-col min-w-0">
-              <div class="font-semibold text-xl truncate">{{ headerTitle() }}</div>
-              <div class="text-sm text-muted-color truncate">
-                {{ modeLabel() }}
-              </div>
+              <span class="font-semibold text-xl truncate">{{ modeLabel() }}</span>
+              @if (effectiveTestId()) {
+                <span class="text-sm text-muted-color">ID: {{ effectiveTestId() }}</span>
+              }
             </div>
           </div>
 
@@ -42,30 +56,74 @@ import { TestsStore } from '@/app/pages/tests/tests.store';
             @if (isDirty()) {
               <p-tag value="Unsaved changes" severity="warn" />
             }
+            @if (effectiveTestId()) {
+              <p-button
+                label="Revert"
+                icon="pi pi-undo"
+                severity="secondary"
+                [outlined]="true"
+                [disabled]="!isDirty()"
+                (onClick)="revert()"
+              />
+            }
             <p-button
-              label="Revert"
-              icon="pi pi-undo"
-              severity="secondary"
-              [outlined]="true"
-              [disabled]="!isDirty()"
-              (onClick)="revert()"
-            />
-            <p-button
-              label="Save"
+              [label]="effectiveTestId() ? 'Save changes' : 'Create test'"
               icon="pi pi-check"
               [disabled]="!canSave()"
               (onClick)="save()"
             />
           </div>
         </div>
+
+        <!-- ── Test metadata form (always visible) ── -->
+        <div class="border-top-1 surface-border pt-4">
+          <p-fluid>
+            <div class="grid grid-cols-12 gap-4">
+              <div class="col-span-12 md:col-span-8 flex flex-col gap-2">
+                <label class="font-semibold" for="testName">Test name <span class="text-red-500">*</span></label>
+                <input
+                  id="testName"
+                  pInputText
+                  fluid
+                  placeholder="e.g. Big Five Personality Assessment"
+                  [ngModel]="store.testTitle()"
+                  (ngModelChange)="store.updateTestTitle($event)"
+                />
+              </div>
+              <div class="col-span-12 md:col-span-4 flex flex-col gap-2">
+                <label class="font-semibold">Description <span class="text-muted-color font-normal text-sm">(optional)</span></label>
+                <textarea
+                  pTextarea
+                  fluid
+                  rows="1"
+                  placeholder="Short description shown to candidates"
+                  [ngModel]="description()"
+                  (ngModelChange)="description.set($event)"
+                ></textarea>
+              </div>
+            </div>
+          </p-fluid>
+        </div>
       </div>
 
-      <app-test-builder [testId]="effectiveTestId()" />
+      <!-- ── Question builder (only after test is created / in edit mode) ── -->
+      @if (effectiveTestId()) {
+        <app-test-builder [testId]="effectiveTestId()" />
+      } @else {
+        <div class="card flex flex-col items-center justify-center gap-3 py-12 text-center text-muted-color">
+          <i class="pi pi-file-edit text-4xl opacity-40"></i>
+          <div class="font-semibold text-lg">Give your test a name and click "Create test"</div>
+          <div class="text-sm max-w-24rem">
+            Once created, the question builder and scoring settings will appear here.
+          </div>
+        </div>
+      }
+
     </div>
   `,
 })
 export class TestBuilderPage {
-  private readonly store = inject(TestBuilderStore);
+  readonly store = inject(TestBuilderStore);
   private readonly tests = inject(TestsStore);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -79,27 +137,26 @@ export class TestBuilderPage {
   private readonly baseline = signal<TestBuilderDraft | null>(null);
   private readonly currentId = signal<string | null>(null);
 
+  /** Description is UI-only for now; wired to the update payload when saving. */
+  readonly description = signal<string>('');
+
   readonly isEditMode = computed(() => !!this.routeTestId());
-  readonly modeLabel = computed(() => (this.isEditMode() ? 'Edit test' : 'Create test'));
-
+  readonly modeLabel = computed(() => (this.isEditMode() ? 'Edit test' : 'New test'));
   readonly effectiveTestId = computed(() => this.routeTestId() ?? this.currentId());
-
-  readonly headerTitle = computed(() => {
-    const title = (this.store.testTitle() ?? '').trim();
-    return title || 'Untitled assessment';
-  });
 
   readonly isDirty = computed(() => {
     const base = this.baseline();
-    if (!base) {
-      return false;
-    }
+    if (!base) return false;
     return serializeDraft(base) !== serializeDraft(this.store.exportDraft());
   });
 
   readonly canSave = computed(() => {
     const title = (this.store.testTitle() ?? '').trim();
-    return !!title && this.isDirty();
+    if (!title) return false;
+    // Create mode: any non-empty title is enough to enable "Create test"
+    if (!this.effectiveTestId()) return true;
+    // Edit mode: require actual changes
+    return this.isDirty();
   });
 
   constructor() {
@@ -117,11 +174,8 @@ export class TestBuilderPage {
         .subscribe({
           next: (found) => {
             this.currentId.set(found.id);
-            // Backend test currently only has name/description/publish; builder questions remain UI-only for now.
-            this.store.loadDraft({
-              title: found.name,
-              questions: [],
-            });
+            this.description.set(found.description ?? '');
+            this.store.loadDraft({ title: found.name, questions: [] });
             this.baseline.set(cloneDraft(this.store.exportDraft()));
           },
           error: () => {
@@ -133,9 +187,11 @@ export class TestBuilderPage {
       return;
     }
 
-    // create mode
+    // create mode — reset everything
     this.currentId.set(null);
+    this.description.set('');
     this.store.reset();
+    this.store.updateTestTitle('');
     this.baseline.set(cloneDraft(this.store.exportDraft()));
   }
 
@@ -145,35 +201,27 @@ export class TestBuilderPage {
 
   revert(): void {
     const base = this.baseline();
-    if (!base) {
-      return;
-    }
+    if (!base) return;
     this.store.loadDraft(cloneDraft(base));
-    this.messages.add({
-      severity: 'info',
-      summary: 'Reverted',
-      detail: 'Changes were discarded.',
-    });
+    this.messages.add({ severity: 'info', summary: 'Reverted', detail: 'Changes were discarded.' });
   }
 
   save(): void {
-    const draft = cloneDraft(this.store.exportDraft());
-    const title = (draft.title ?? '').trim();
+    const title = (this.store.testTitle() ?? '').trim();
     if (!title) {
-      this.messages.add({
-        severity: 'warn',
-        summary: 'Title required',
-        detail: 'Please enter a test title before saving.',
-      });
+      this.messages.add({ severity: 'warn', summary: 'Title required', detail: 'Please enter a test name.' });
       return;
     }
 
-    if (this.currentId) {
+    const existingId = this.currentId();
+
+    // ── Edit / rename ──
+    if (existingId) {
       this.tests
-        .update$(this.currentId()!, {
-          id: this.currentId()!,
+        .update$(existingId, {
+          id: existingId,
           name: title,
-          description: null,
+          description: this.description() || null,
           isPublished: false,
         })
         .pipe(take(1))
@@ -184,8 +232,9 @@ export class TestBuilderPage {
       return;
     }
 
+    // ── Create new ──
     this.tests
-      .create$({ name: title, description: null })
+      .create$({ name: title, description: this.description() || null })
       .pipe(take(1))
       .subscribe({
         next: (created) => {
