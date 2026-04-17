@@ -32,6 +32,12 @@ export class TestBlueprintStore {
   readonly loading = signal(false);
   readonly saving = signal(false);
 
+  /**
+   * Set to true by TestBuilderComponent when there is a new question draft
+   * that has not yet been POSTed. Used by the page to gate back-navigation.
+   */
+  readonly hasUnsavedQuestion = signal(false);
+
   readonly selectedQuestionId = signal<string | null>(null);
   readonly selectedQuestion = computed(() => {
     const id = this.selectedQuestionId();

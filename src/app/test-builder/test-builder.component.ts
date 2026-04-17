@@ -76,8 +76,6 @@ export class TestBuilderComponent {
     }) | null
   >(null);
 
-  readonly selectedQuestion = computed(() => this.blueprint.selectedQuestion());
-
   readonly testVariables = computed(() => this.blueprint.variables());
 
   readonly variableSelectOptions = computed(() =>
@@ -88,12 +86,14 @@ export class TestBuilderComponent {
   );
 
   constructor() {
+    // Hydrate when testId changes. After load, seed the draft from the first selected question.
     effect((onCleanup) => {
       const tid = this.testId();
       if (!tid) {
         untracked(() => {
           this.blueprint.setTestId(null);
           this.questionDraft.set(null);
+          this.blueprint.hasUnsavedQuestion.set(false);
         });
         return;
       }
@@ -107,16 +107,32 @@ export class TestBuilderComponent {
       onCleanup(() => sub.unsubscribe());
     });
 
+    // Keep the store's hasUnsavedQuestion flag in sync with the local draft state.
+    // NOTE: We intentionally do NOT have a reactive effect that watches selectedQuestion()
+    // and updates questionDraft — that caused a race condition with startNewQuestion/save.
+    // All draft transitions are now explicit (see selectQuestion / startNewQuestion / saveQuestion).
     effect(() => {
-      const q = this.selectedQuestion();
+      const draft = this.questionDraft();
       untracked(() => {
-        this.questionDraft.set(q ? draftFromBlueprintQuestion(q) : null);
+        this.blueprint.hasUnsavedQuestion.set(draft != null && !draft.id);
       });
     });
   }
 
   selectQuestion(id: string): void {
     this.blueprint.selectedQuestionId.set(id);
+    // Explicitly update the draft so the right panel reflects the selected question
+    // immediately, without relying on a reactive effect that can race with other updates.
+    const q = this.blueprint.questions().find((q) => String(q.id) === String(id));
+    if (q) {
+      this.questionDraft.set(draftFromBlueprintQuestion(q));
+    }
+  }
+
+  /** Re-focuses the unsaved new-question draft when user clicks the preview card. */
+  focusNewQuestion(): void {
+    this.blueprint.selectedQuestionId.set(null);
+    // The draft is already the unsaved new question — nothing else to do.
   }
 
   startNewQuestion(type: QuestionType): void {
@@ -276,7 +292,16 @@ export class TestBuilderComponent {
     if (!draft.id) {
       this.blueprint
         .createQuestion$({ ...draft, variableKey: effectiveKey })
-        .subscribe({ error: () => {} });
+        .subscribe({
+          next: (created) => {
+            // Explicitly update the draft so the "Unsaved" preview disappears immediately
+            // and the right panel shows the saved question.
+            this.questionDraft.set(draftFromBlueprintQuestion(created));
+            // Refresh the list from the server so the sidebar shows correct ordering.
+            this.blueprint.refreshQuestions$().subscribe();
+          },
+          error: () => {},
+        });
       return;
     }
     const update: UpdateQuestionCommand = {
@@ -302,11 +327,25 @@ export class TestBuilderComponent {
         }),
       ),
     };
-    this.blueprint.updateQuestion$(draft.id, update).subscribe({ error: () => {} });
+    this.blueprint.updateQuestion$(draft.id, update).subscribe({
+      next: () => {
+        // Refresh so the sidebar reflects any server-side changes to orderIndex etc.
+        this.blueprint.refreshQuestions$().subscribe({
+          next: () => {
+            // Re-sync the draft with the freshly loaded question data.
+            const saved = this.blueprint.questions().find((q) => String(q.id) === String(draft.id));
+            if (saved) {
+              this.questionDraft.set(draftFromBlueprintQuestion(saved));
+            }
+          },
+        });
+      },
+      error: () => {},
+    });
   }
 
   confirmDeleteSelected(): void {
-    const q = this.selectedQuestion();
+    const q = this.blueprint.selectedQuestion();
     if (!q) {
       return;
     }

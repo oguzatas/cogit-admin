@@ -1,0 +1,29 @@
+<svg viewBox="0 0 100 108" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <defs>
+    <linearGradient id="sg" x1="50" y1="100" x2="50" y2="6" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#0d2448"/>
+      <stop offset="50%"  stop-color="#0b6d8a"/>
+      <stop offset="100%" stop-color="#00c8d4"/>
+    </linearGradient>
+  </defs>
+  <!-- Right arm: sweeps from bottom-center up and around to top-right -->
+  <path fill="url(#sg)" d="
+    M 51 97
+    C 62 90, 86 74, 90 52
+    C 93 32, 79 10, 61 7
+    L 59 18
+    C 72 21, 82 38, 79 52
+    C 76 67, 57 83, 51 89
+    Z
+  "/>
+  <!-- Left arm: mirror of right arm -->
+  <path fill="url(#sg)" d="
+    M 49 97
+    C 38 90, 14 74, 10 52
+    C 7  32, 21 10, 39 7
+    L 41 18
+    C 28 21, 18 38, 21 52
+    C 24 67, 43 83, 49 89
+    Z
+  "/>
+</svg>

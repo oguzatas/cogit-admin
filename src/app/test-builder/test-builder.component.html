@@ -42,6 +42,24 @@
                                     </p-card>
                                 </div>
                             }
+
+                            <!-- Unsaved new-question preview -->
+                            @if (questionDraft(); as draft) {
+                                @if (!draft.id) {
+                                    <div class="unsaved-preview flex-1 min-w-0" role="button" tabindex="0" (click)="focusNewQuestion()" (keydown.enter)="focusNewQuestion()">
+                                        <div class="border-round-lg p-3 flex flex-col gap-1 cursor-pointer unsaved-card">
+                                            <div class="flex align-items-center gap-2">
+                                                <i class="pi pi-exclamation-circle text-sm" style="color:var(--p-orange-500)"></i>
+                                                <span class="font-semibold text-sm" style="color:var(--p-orange-600)">#{{ blueprint.questions().length + 1 }} · {{ draft.variableKey || 'New question' }}</span>
+                                                <span class="ml-auto text-xs font-semibold px-2 py-1 border-round" style="background:var(--p-orange-100);color:var(--p-orange-700)">Unsaved</span>
+                                            </div>
+                                            <p class="m-0 text-muted-color text-sm line-height-3">
+                                                {{ snippet(draft.text, 72) || 'Type the question text…' }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                }
+                            }
                         </div>
                     </div>
                 </ng-template>

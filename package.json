@@ -1,5 +1,5 @@
 {
-    "name": "sakai-ng",
+    "name": "scorion-admin",
     "version": "21.0.0",
     "scripts": {
         "ng": "ng",

@@ -1,3 +1,26 @@
+/* ── Unsaved question preview card ──────────────────────── */
+.unsaved-card {
+  border: 2px dashed var(--p-orange-400, #fb923c);
+  background: color-mix(in srgb, var(--p-orange-50, #fff7ed) 40%, transparent);
+  animation: unsaved-pulse 2.4s ease-in-out infinite;
+  transition: box-shadow 0.2s;
+
+  &:hover {
+    border-style: solid;
+  }
+}
+
+@keyframes unsaved-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(251, 146, 60, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(251, 146, 60, 0);
+  }
+}
+
+/* ── CDK drag ───────────────────────────────────────────── */
 .cdk-drag-preview {
   box-sizing: border-box;
   border-radius: var(--p-content-border-radius, 12px);

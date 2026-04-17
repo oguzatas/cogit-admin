@@ -4,26 +4,30 @@ import { FormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { map, take } from 'rxjs/operators';
-import { MessageService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { FluidModule } from 'primeng/fluid';
 import { InputTextModule } from 'primeng/inputtext';
 import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
 import { TestBuilderComponent } from '@/app/test-builder/test-builder.component';
 import { TestBuilderStore } from '@/app/test-builder/test-builder.store';
+import { TestBlueprintStore } from '@/app/tests/blueprint/test-blueprint.store';
 import type { TestBuilderDraft } from '@/app/test-builder/test-builder.models';
 import { TestsStore } from '@/app/pages/tests/tests.store';
 
 @Component({
   selector: 'app-test-builder-page',
   standalone: true,
+  providers: [ConfirmationService],
   imports: [
     CommonModule,
     FormsModule,
     RouterModule,
     FluidModule,
     ButtonModule,
+    ConfirmDialogModule,
     InputTextModule,
     TextareaModule,
     TagModule,
@@ -53,8 +57,11 @@ import { TestsStore } from '@/app/pages/tests/tests.store';
           </div>
 
           <div class="flex flex-wrap items-center gap-2">
+            @if (blueprint.hasUnsavedQuestion()) {
+              <p-tag value="Unsaved question" severity="warn" icon="pi pi-exclamation-circle" />
+            }
             @if (isDirty()) {
-              <p-tag value="Unsaved changes" severity="warn" />
+              <p-tag value="Unsaved test changes" severity="warn" />
             }
             @if (effectiveTestId()) {
               <p-button
@@ -120,14 +127,18 @@ import { TestsStore } from '@/app/pages/tests/tests.store';
       }
 
     </div>
+
+    <p-confirmdialog />
   `,
 })
 export class TestBuilderPage {
   readonly store = inject(TestBuilderStore);
+  readonly blueprint = inject(TestBlueprintStore);
   private readonly tests = inject(TestsStore);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly messages = inject(MessageService);
+  private readonly confirmation = inject(ConfirmationService);
 
   readonly routeTestId = toSignal(
     this.route.paramMap.pipe(map((p) => p.get('testId'))),
@@ -196,7 +207,19 @@ export class TestBuilderPage {
   }
 
   goBack(): void {
-    void this.router.navigate(['/tests']);
+    if (!this.blueprint.hasUnsavedQuestion()) {
+      void this.router.navigate(['/tests']);
+      return;
+    }
+    this.confirmation.confirm({
+      header: 'Unsaved question',
+      message: 'You have a question that hasn\'t been saved yet. If you leave now it will be lost.',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Leave anyway',
+      rejectLabel: 'Stay',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => void this.router.navigate(['/tests']),
+    });
   }
 
   revert(): void {
