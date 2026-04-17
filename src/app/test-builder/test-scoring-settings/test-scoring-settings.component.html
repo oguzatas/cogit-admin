@@ -1,9 +1,7 @@
 <div class="card flex flex-col gap-4">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-        <div class="flex flex-col">
-            <div class="font-semibold text-xl">Scoring Settings</div>
-            <div class="text-sm text-muted-color">Variables and formulas used to compute test scores.</div>
-        </div>
+    <div class="flex flex-col">
+        <div class="font-semibold text-xl">Scoring Settings</div>
+        <div class="text-sm text-muted-color">Variables and formulas used to compute test scores.</div>
     </div>
 
     <p-tabs value="0">
@@ -12,40 +10,51 @@
             <p-tab value="1">Formulas ({{ blueprint.metrics().length }})</p-tab>
         </p-tablist>
         <p-tabpanels>
+
             <!-- ── Variables ── -->
             <p-tabpanel value="0">
-                <div class="flex flex-col gap-4">
-                    <p class="m-0 text-sm text-muted-color">Used by option points and formulas (NCalc).</p>
+                <div class="flex flex-col gap-4 pt-4">
+                    <p class="m-0 text-sm text-muted-color">
+                        Variables are referenced by option scoring rules and NCalc formulas.
+                    </p>
 
+                    <!-- Add new variable row -->
                     <div class="grid grid-cols-12 gap-3 items-end">
                         <div class="col-span-12 md:col-span-4 flex flex-col gap-2">
                             <label class="font-semibold text-sm">Name</label>
-                            <input pInputText fluid [ngModel]="newVariable().name" (ngModelChange)="patchNewVariable({ name: $event })" />
+                            <input pInputText fluid placeholder="e.g. Agreeableness" [ngModel]="newVariable().name" (ngModelChange)="patchNewVariable({ name: $event })" />
                         </div>
                         <div class="col-span-12 md:col-span-3 flex flex-col gap-2">
                             <label class="font-semibold text-sm">Key</label>
-                            <input pInputText fluid [ngModel]="newVariable().key" (ngModelChange)="patchNewVariable({ key: $event })" />
+                            <input pInputText fluid placeholder="e.g. AGR" [ngModel]="newVariable().key" (ngModelChange)="patchNewVariable({ key: $event })" />
                         </div>
                         <div class="col-span-12 md:col-span-3 flex flex-col gap-2">
-                            <label class="font-semibold text-sm">Default</label>
+                            <label class="font-semibold text-sm">Default value</label>
                             <p-inputnumber fluid [ngModel]="newVariable().defaultValue" (ngModelChange)="patchNewVariable({ defaultValue: $event ?? 0 })" />
                         </div>
                         <div class="col-span-12 md:col-span-2 flex justify-end">
-                            <p-button label="Add" icon="pi pi-plus" severity="secondary" (onClick)="createVariable()" />
+                            <p-button label="Add" icon="pi pi-plus" severity="secondary" fluid (onClick)="createVariable()" />
                         </div>
                     </div>
 
-                    <p-table [value]="blueprint.variables()" dataKey="id" [stripedRows]="true" styleClass="w-full p-datatable-sm">
+                    <!-- Existing variables table -->
+                    <p-table
+                        [value]="blueprint.variables()"
+                        dataKey="id"
+                        [stripedRows]="true"
+                        styleClass="w-full p-datatable-sm"
+                    >
                         <ng-template #header>
                             <tr>
                                 <th style="min-width: 14rem">Name</th>
                                 <th style="min-width: 10rem">Key</th>
                                 <th style="width: 12rem">Default</th>
-                                <th style="width: 10rem"></th>
+                                <th style="width: 8rem"></th>
                             </tr>
                         </ng-template>
                         <ng-template #body let-v>
-                            @if (ensureVariableEdit(v); as e) {
+                            @let e = variableEdits()[v.id];
+                            @if (e) {
                                 <tr>
                                     <td><input pInputText fluid [ngModel]="e.name" (ngModelChange)="patchVariableEdit(v.id, { name: $event })" /></td>
                                     <td><input pInputText fluid [ngModel]="e.key" (ngModelChange)="patchVariableEdit(v.id, { key: $event })" /></td>
@@ -60,7 +69,7 @@
                             }
                         </ng-template>
                         <ng-template #emptymessage>
-                            <tr><td colspan="4" class="py-6 text-center text-muted-color">No variables yet.</td></tr>
+                            <tr><td colspan="4" class="py-6 text-center text-muted-color text-sm">No variables yet. Add one above.</td></tr>
                         </ng-template>
                     </p-table>
                 </div>
@@ -68,38 +77,48 @@
 
             <!-- ── Formulas ── -->
             <p-tabpanel value="1">
-                <div class="flex flex-col gap-4">
-                    <p class="m-0 text-sm text-muted-color">Define metrics using NCalc expressions over variables.</p>
+                <div class="flex flex-col gap-4 pt-4">
+                    <p class="m-0 text-sm text-muted-color">
+                        Define computed metrics using NCalc expressions over your variables (e.g. <code>AGR + CON</code>).
+                    </p>
 
+                    <!-- Add new metric row -->
                     <div class="grid grid-cols-12 gap-3 items-end">
                         <div class="col-span-12 md:col-span-3 flex flex-col gap-2">
                             <label class="font-semibold text-sm">Name</label>
-                            <input pInputText fluid [ngModel]="newMetric().name" (ngModelChange)="patchNewMetric({ name: $event })" />
+                            <input pInputText fluid placeholder="e.g. Total score" [ngModel]="newMetric().name" (ngModelChange)="patchNewMetric({ name: $event })" />
                         </div>
                         <div class="col-span-12 md:col-span-2 flex flex-col gap-2">
                             <label class="font-semibold text-sm">Key</label>
-                            <input pInputText fluid [ngModel]="newMetric().key" (ngModelChange)="patchNewMetric({ key: $event })" />
+                            <input pInputText fluid placeholder="e.g. TOTAL" [ngModel]="newMetric().key" (ngModelChange)="patchNewMetric({ key: $event })" />
                         </div>
                         <div class="col-span-12 md:col-span-5 flex flex-col gap-2">
-                            <label class="font-semibold text-sm">Formula Expression</label>
-                            <textarea pTextarea fluid rows="2" [ngModel]="newMetric().formulaExpression" (ngModelChange)="patchNewMetric({ formulaExpression: $event })"></textarea>
+                            <label class="font-semibold text-sm">Formula (NCalc)</label>
+                            <textarea pTextarea fluid rows="2" placeholder="e.g. AGR + CON" [ngModel]="newMetric().formulaExpression" (ngModelChange)="patchNewMetric({ formulaExpression: $event })"></textarea>
                         </div>
                         <div class="col-span-12 md:col-span-2 flex justify-end">
-                            <p-button label="Add" icon="pi pi-plus" severity="secondary" (onClick)="createMetric()" />
+                            <p-button label="Add" icon="pi pi-plus" severity="secondary" fluid (onClick)="createMetric()" />
                         </div>
                     </div>
 
-                    <p-table [value]="blueprint.metrics()" dataKey="id" [stripedRows]="true" styleClass="w-full p-datatable-sm">
+                    <!-- Existing metrics table -->
+                    <p-table
+                        [value]="blueprint.metrics()"
+                        dataKey="id"
+                        [stripedRows]="true"
+                        styleClass="w-full p-datatable-sm"
+                    >
                         <ng-template #header>
                             <tr>
                                 <th style="min-width: 14rem">Name</th>
-                                <th style="min-width: 10rem">Key</th>
+                                <th style="min-width: 8rem">Key</th>
                                 <th style="min-width: 20rem">Formula</th>
-                                <th style="width: 10rem"></th>
+                                <th style="width: 8rem"></th>
                             </tr>
                         </ng-template>
                         <ng-template #body let-m>
-                            @if (ensureMetricEdit(m); as e) {
+                            @let e = metricEdits()[m.id];
+                            @if (e) {
                                 <tr>
                                     <td><input pInputText fluid [ngModel]="e.name" (ngModelChange)="patchMetricEdit(m.id, { name: $event })" /></td>
                                     <td><input pInputText fluid [ngModel]="e.key" (ngModelChange)="patchMetricEdit(m.id, { key: $event })" /></td>
@@ -122,11 +141,12 @@
                             }
                         </ng-template>
                         <ng-template #emptymessage>
-                            <tr><td colspan="4" class="py-6 text-center text-muted-color">No formulas yet.</td></tr>
+                            <tr><td colspan="4" class="py-6 text-center text-muted-color text-sm">No formulas yet. Add one above.</td></tr>
                         </ng-template>
                     </p-table>
                 </div>
             </p-tabpanel>
+
         </p-tabpanels>
     </p-tabs>
 </div>

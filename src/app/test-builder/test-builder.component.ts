@@ -339,13 +339,26 @@ export class TestBuilderComponent {
   }
 }
 
+function toQuestionTypeEnum(raw: QuestionType | string | number): QuestionType {
+  // API may return the string name, a numeric index, or the enum value itself.
+  if (typeof raw === 'string' && Object.values(QuestionType).includes(raw as QuestionType)) {
+    return raw as QuestionType;
+  }
+  const byIndex: Record<number, QuestionType> = {
+    0: QuestionType.SingleChoice,
+    1: QuestionType.MultipleChoice,
+    2: QuestionType.TextInput,
+    3: QuestionType.NumberInput,
+  };
+  return byIndex[Number(raw)] ?? QuestionType.SingleChoice;
+}
+
 function draftFromBlueprintQuestion(q: BlueprintQuestion): CreateQuestionCommand & { id?: string } {
   return {
     id: q.id,
     testId: q.testId,
     text: q.text,
-    questionType:
-      typeof q.questionType === 'number' ? q.questionType : (0 as any),
+    questionType: toQuestionTypeEnum(q.questionType as string | number),
     orderIndex: q.orderIndex,
     variableKey: q.variableKey,
     settings: q.settings,
