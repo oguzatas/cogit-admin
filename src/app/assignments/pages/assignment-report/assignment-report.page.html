@@ -26,38 +26,74 @@
             </div>
         </div>
 
-        <!-- A — Scoring summary -->
-        <div class="card flex flex-col gap-4">
+        <!-- Hero outcome: type (e.g. ENTJ) or primary numeric score -->
+        @if (heroOutcome(); as hero) {
+            <div class="hero-outcome border-round-2xl">
+                <div
+                    class="hero-outcome__inner px-5 py-6 md:px-8 md:py-8 flex flex-col md:flex-row md:items-center md:justify-between gap-5"
+                >
+                    <div class="flex flex-col gap-2 text-center md:text-left min-w-0 flex-1">
+                        <span class="hero-outcome__label text-xs font-bold text-muted-color uppercase">Final result</span>
+                        @if (hero.kind === 'text') {
+                            <p class="hero-outcome__value hero-outcome__value--type m-0">{{ hero.value }}</p>
+                            <span class="text-sm text-muted-color line-height-3">Outcome derived from this assessment’s scoring model.</span>
+                        } @else {
+                            <p class="hero-outcome__value m-0">{{ hero.value | number: '1.0-2' }}</p>
+                            <span class="text-sm text-muted-color line-height-3">Primary score from the first calculated metric.</span>
+                        }
+                    </div>
+                    <div class="hidden md:flex align-items-center justify-content-center shrink-0">
+                        <span
+                            class="inline-flex align-items-center justify-content-center border-circle border-2 border-primary text-primary w-4rem h-4rem text-2xl surface-card shadow-1"
+                            aria-hidden="true"
+                        >
+                            <i class="pi pi-chart-bar"></i>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Variable totals / scale profile chart -->
+        <div class="profile-chart-card card border-round-2xl flex flex-col gap-4">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <div class="font-semibold text-lg">Scoring summary</div>
-                    <div class="text-sm text-muted-color">Calculated scores by scale or metric</div>
+                    <div class="font-semibold text-lg">Dimension profile</div>
+                    <div class="text-sm text-muted-color">
+                        @if (profileChartUsesVariableTotals()) {
+                            Totals per scoring variable — higher bars indicate stronger emphasis on that dimension.
+                        } @else {
+                            Calculated scores by scale or metric from the results payload.
+                        }
+                    </div>
                 </div>
-                <p-button
-                    [label]="chartType() === 'bar' ? 'Radar view' : 'Bar chart'"
-                    icon="pi pi-chart-bar"
-                    severity="secondary"
-                    [outlined]="true"
-                    size="small"
-                    (onClick)="toggleChartKind()"
-                />
+                @if (profileChartData()) {
+                    <p-button
+                        [label]="profileChartType() === 'bar' ? 'Radar view' : 'Bar chart'"
+                        icon="pi pi-sync"
+                        severity="secondary"
+                        [outlined]="true"
+                        size="small"
+                        (onClick)="toggleProfileChartKind()"
+                    />
+                }
             </div>
 
-            @if (chartData(); as cdata) {
-                <div style="height: 22rem">
+            @if (profileChartData(); as cdata) {
+                <div class="w-full" style="height: 22rem">
                     <p-chart
-                        [type]="chartType()"
+                        [type]="profileChartType()"
                         [data]="cdata"
-                        [options]="activeChartOptions()"
+                        [options]="profileChartOptions()"
                         class="w-full h-full"
                     />
                 </div>
             } @else {
-                <p class="m-0 text-muted-color text-sm">No calculated scores returned for this assignment.</p>
+                <p class="m-0 text-muted-color text-sm">No dimension or scale data was returned for this assignment.</p>
             }
         </div>
 
-        <!-- B — Question breakdown -->
+        <!-- Question breakdown -->
         <div class="card flex flex-col gap-4">
             <div class="font-semibold text-lg">Question breakdown</div>
             <p-table [value]="report.answers" dataKey="questionId" [tableStyle]="{ 'min-width': '44rem' }">
@@ -86,7 +122,7 @@
             </p-table>
         </div>
 
-        <!-- C — Manual grading -->
+        <!-- Manual grading -->
         @if (manualAnswers().length > 0) {
             <div class="card flex flex-col gap-4 border-1 border-orange-200 dark:border-orange-900">
                 <div>

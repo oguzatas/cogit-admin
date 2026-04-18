@@ -4,7 +4,7 @@ import { AppLayout } from './app/layout/component/app.layout';
 import { GuestLayout } from './app/layout/component/guest.layout';
 import { AssessmentInvitePage } from './app/assessment/pages/assessment-invite.page';
 import { LoginPage } from './app/pages/auth/login.page';
-import { Home } from './app/pages/home/home';
+import { HomePage } from './app/pages/home/home.page';
 import { TestBuilderPage } from './app/pages/test-builder/test-builder-page';
 import { TestsListPage } from './app/pages/tests/tests-list.page';
 import { TenantsListPage } from './app/tenants/pages/tenants-list/tenants-list.page';
@@ -27,7 +27,7 @@ export const appRoutes: Routes = [
         component: AppLayout,
         canActivate: [authGuard],
         children: [
-            { path: '', component: Home },
+            { path: '', component: HomePage },
             { path: 'tests', component: TestsListPage },
             { path: 'tests/new', component: TestBuilderPage },
             { path: 'tests/:testId/edit', component: TestBuilderPage },

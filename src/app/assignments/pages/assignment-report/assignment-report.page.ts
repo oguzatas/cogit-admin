@@ -14,6 +14,10 @@ import { TagModule } from 'primeng/tag';
 import { TestReviewStore } from '@/app/tests/review/test-review.store';
 import type { AssignmentAnswerViewDto } from '@/app/core/api/models/test-review.dto';
 
+export type HeroOutcome =
+  | { kind: 'text'; value: string }
+  | { kind: 'score'; value: number };
+
 @Component({
   selector: 'app-assignment-report-page',
   standalone: true,
@@ -30,8 +34,31 @@ import type { AssignmentAnswerViewDto } from '@/app/core/api/models/test-review.
     TagModule,
   ],
   templateUrl: './assignment-report.page.html',
+  styleUrl: './assignment-report.page.scss',
 })
 export class AssignmentReportPage {
+  private static readonly PROFILE_FILL = [
+    'rgba(99, 102, 241, 0.78)',
+    'rgba(16, 185, 129, 0.78)',
+    'rgba(245, 158, 11, 0.78)',
+    'rgba(236, 72, 153, 0.78)',
+    'rgba(14, 165, 233, 0.78)',
+    'rgba(168, 85, 247, 0.78)',
+    'rgba(239, 68, 68, 0.72)',
+    'rgba(20, 184, 166, 0.78)',
+  ];
+
+  private static readonly PROFILE_BORDER = [
+    'rgb(99, 102, 241)',
+    'rgb(16, 185, 129)',
+    'rgb(245, 158, 11)',
+    'rgb(236, 72, 153)',
+    'rgb(14, 165, 233)',
+    'rgb(168, 85, 247)',
+    'rgb(239, 68, 68)',
+    'rgb(20, 184, 166)',
+  ];
+
   readonly review = inject(TestReviewStore);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -52,11 +79,67 @@ export class AssignmentReportPage {
   /** Points draft for manual grading keyed by questionId */
   readonly manualDrafts = signal<Record<string, number>>({});
 
-  readonly chartType = signal<'bar' | 'radar'>('bar');
+  readonly profileChartType = signal<'bar' | 'radar'>('bar');
 
-  readonly chartData = computed(() => {
+  /** Prominent outcome from first calculated row: type code vs numeric score. */
+  readonly heroOutcome = computed((): HeroOutcome | null => {
     const res = this.review.results();
-    const rows = res?.results ?? [];
+    const first = res?.results?.[0];
+    if (!first) {
+      return null;
+    }
+    const text = first.resultText?.trim();
+    if (text) {
+      return { kind: 'text', value: text };
+    }
+    const raw = first.calculatedScore ?? first.points;
+    if (raw == null || raw === '') {
+      return null;
+    }
+    const n = Number(raw);
+    if (!Number.isFinite(n)) {
+      return null;
+    }
+    return { kind: 'score', value: n };
+  });
+
+  /** `variableTotals` drives the chart when present; otherwise legacy `results` rows. */
+  readonly profileChartUsesVariableTotals = computed(() => {
+    const vt = this.review.results()?.variableTotals;
+    return Boolean(vt && Object.keys(vt).length > 0);
+  });
+
+  readonly profileChartData = computed(() => {
+    const res = this.review.results();
+    if (!res) {
+      return null;
+    }
+    const vt = res.variableTotals;
+    if (vt && Object.keys(vt).length > 0) {
+      const entries = Object.entries(vt).sort(
+        ([, a], [, b]) => Number(b) - Number(a),
+      );
+      const labels = entries.map(([k]) => k.trim().toUpperCase());
+      const data = entries.map(([, v]) => Number(v));
+      const n = AssignmentReportPage.PROFILE_FILL.length;
+      return {
+        labels,
+        datasets: [
+          {
+            label: 'Variable total',
+            data,
+            backgroundColor: entries.map(
+              (_, i) => AssignmentReportPage.PROFILE_FILL[i % n],
+            ),
+            borderColor: entries.map(
+              (_, i) => AssignmentReportPage.PROFILE_BORDER[i % n],
+            ),
+            borderWidth: 1.5,
+          },
+        ],
+      };
+    }
+    const rows = res.results ?? [];
     if (rows.length === 0) {
       return null;
     }
@@ -68,7 +151,7 @@ export class AssignmentReportPage {
         {
           label: 'Score',
           data,
-          backgroundColor: 'rgba(16, 185, 129, 0.35)',
+          backgroundColor: 'rgba(16, 185, 129, 0.38)',
           borderColor: 'rgb(16, 185, 129)',
           borderWidth: 1,
         },
@@ -76,13 +159,27 @@ export class AssignmentReportPage {
     };
   });
 
-  private readonly barChartOptions = {
+  private readonly barChartOptionsBase = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
         display: true,
         position: 'bottom' as const,
+      },
+      tooltip: {
+        callbacks: {
+          label: (ctx: { dataset?: { label?: string }; parsed: { y?: number; x?: number } }) => {
+            const v =
+              ctx.parsed.y != null
+                ? ctx.parsed.y
+                : ctx.parsed.x != null
+                  ? ctx.parsed.x
+                  : 0;
+            const prefix = ctx.dataset?.label ? `${ctx.dataset.label}: ` : '';
+            return `${prefix}${v}`;
+          },
+        },
       },
     },
     scales: {
@@ -93,7 +190,7 @@ export class AssignmentReportPage {
     },
   };
 
-  private readonly radarChartOptions = {
+  private readonly radarChartOptionsBase = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
@@ -106,6 +203,26 @@ export class AssignmentReportPage {
     },
   };
 
+  readonly profileChartOptions = computed(() => {
+    const data = this.profileChartData();
+    const kind = this.profileChartType();
+    const nums = (data?.datasets[0]?.data ?? []) as number[];
+    const maxVal = nums.length ? Math.max(...nums, 1) : 1;
+    const suggestedMax = Math.ceil(maxVal * 1.12);
+    if (kind === 'radar') {
+      return {
+        ...this.radarChartOptionsBase,
+        scales: {
+          r: {
+            suggestedMin: 0,
+            suggestedMax,
+          },
+        },
+      };
+    }
+    return { ...this.barChartOptionsBase };
+  });
+
   readonly manualAnswers = computed(() =>
     (this.review.results()?.answers ?? []).filter((a) => a.requiresManualGrade),
   );
@@ -117,8 +234,6 @@ export class AssignmentReportPage {
         untracked(() => this.review.setAssignmentId(null));
         return;
       }
-      // eslint-disable-next-line no-console -- route debugging: confirm param before HTTP
-      console.log('Fetching report for ID:', id);
       untracked(() => {
         this.review.loadResults$(id).subscribe({
           error: () => {
@@ -141,10 +256,6 @@ export class AssignmentReportPage {
         this.manualDrafts.set(next);
       });
     });
-  }
-
-  activeChartOptions(): object {
-    return this.chartType() === 'radar' ? this.radarChartOptions : this.barChartOptions;
   }
 
   formatAnswer(a: AssignmentAnswerViewDto): string {
@@ -221,7 +332,7 @@ export class AssignmentReportPage {
     void this.router.navigate(['/assignments/results']);
   }
 
-  toggleChartKind(): void {
-    this.chartType.update((t) => (t === 'bar' ? 'radar' : 'bar'));
+  toggleProfileChartKind(): void {
+    this.profileChartType.update((t) => (t === 'bar' ? 'radar' : 'bar'));
   }
 }

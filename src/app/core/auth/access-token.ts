@@ -53,6 +53,19 @@ export function looksLikeJwt(accessToken: string): boolean {
   return parts.length === 3 && parts.every((p) => p.length > 0);
 }
 
+/** Read JWT payload object for UI claims (not verified; API enforces auth). */
+export function decodeAccessTokenPayload(accessToken: string | null): Record<string, unknown> | null {
+  if (!accessToken || !looksLikeJwt(accessToken)) {
+    return null;
+  }
+  const parts = accessToken.split('.');
+  const segment = parts[1];
+  if (!segment) {
+    return null;
+  }
+  return decodeJwtPayloadSegment(segment);
+}
+
 /**
  * Whether routing may treat the user as signed in: valid JWT `exp`, or opaque bearer token
  * that is still inside the wall-clock window from `expiresIn` (stored as `opaqueExpiresAtMs`).

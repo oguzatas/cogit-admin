@@ -17,6 +17,20 @@ function num(v: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function normalizeVariableTotals(raw: unknown): Record<string, number> | null {
+  if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) {
+    return null;
+  }
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (k.startsWith('$')) {
+      continue;
+    }
+    out[k] = num(v);
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 /**
  * Normalizer for results view.
  * Since the endpoint is not in OpenAPI yet, we keep this defensive.
@@ -35,6 +49,7 @@ export function normalizeAssignmentResultView(raw: unknown): AssignmentResultVie
     submittedAt: (r.submittedAt ?? r['SubmittedAt'] ?? null) as any,
     answers: answers.map((x) => normalizeAnswer(x)),
     results: results.map((x) => normalizeCalculatedResult(x)),
+    variableTotals: normalizeVariableTotals(r.variableTotals ?? r['VariableTotals']),
   };
 }
 
@@ -62,14 +77,20 @@ export function normalizeCalculatedResult(raw: unknown): AssignmentCalculatedRes
   const r = raw as AssignmentCalculatedResultDto & Record<string, unknown>;
   const pk = str(r['variableKey'] ?? r['VariableKey']);
   const scaleName = str(r['scaleName'] ?? r['ScaleName'] ?? pk);
+  const resultTextRaw = str(r['resultText'] ?? r['ResultText'] ?? '');
   const calcRaw =
     r['calculatedScore'] ?? r['CalculatedScore'] ?? r['points'] ?? r['Points'];
-  const pts = num(calcRaw);
+  const hasNumeric =
+    calcRaw != null &&
+    calcRaw !== '' &&
+    !(typeof calcRaw === 'string' && calcRaw.trim() === '');
+  const pts = hasNumeric ? num(calcRaw) : 0;
   return {
     variableKey: pk,
     points: pts,
     scaleName: scaleName || pk,
-    calculatedScore: pts,
+    calculatedScore: hasNumeric ? pts : undefined,
+    resultText: resultTextRaw || undefined,
   };
 }
 

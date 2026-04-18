@@ -1,0 +1,248 @@
+<div class="home-dashboard flex flex-col gap-5 pb-6">
+    <div class="glass-panel border-round-2xl p-0 hero-glow">
+        <div class="hero-glow__inner px-5 py-6 md:px-7 md:py-7 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div class="min-w-0">
+                <div class="text-xs font-bold text-primary uppercase tracking-widest mb-2">Command center</div>
+                <h1 class="m-0 text-3xl md:text-4xl font-bold text-color leading-tight">Operations overview</h1>
+                <p class="m-0 mt-2 text-muted-color line-height-3 max-w-40rem">
+                    Live KPIs, assignment flow, and recent admin activity — scoped to your access level.
+                </p>
+            </div>
+            <div class="flex flex-wrap gap-2 shrink-0">
+                <p-button
+                    label="Refresh"
+                    icon="pi pi-refresh"
+                    severity="secondary"
+                    [outlined]="true"
+                    [loading]="store.loading()"
+                    (onClick)="reload()"
+                />
+            </div>
+        </div>
+    </div>
+
+    @if (store.loading()) {
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            @for (i of [1, 2, 3, 4]; track i) {
+                <div class="glass-panel border-round-xl p-4 flex flex-col gap-3">
+                    <p-skeleton width="40%" height="1rem" />
+                    <p-skeleton width="70%" height="2.25rem" />
+                    <p-skeleton width="55%" height="0.85rem" />
+                </div>
+            }
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div class="glass-panel border-round-xl p-4">
+                <p-skeleton width="50%" height="1.25rem" class="mb-3" />
+                <p-skeleton height="16rem" />
+            </div>
+            <div class="glass-panel border-round-xl p-4">
+                <p-skeleton width="45%" height="1.25rem" class="mb-3" />
+                <p-skeleton height="16rem" borderRadius="50%" />
+            </div>
+        </div>
+        <div class="glass-panel border-round-xl p-4">
+            <p-skeleton width="30%" height="1.25rem" class="mb-4" />
+            @for (j of [1, 2, 3, 4]; track j) {
+                <p-skeleton height="3.5rem" class="mb-3" />
+            }
+        </div>
+    } @else if (store.snapshot(); as snap) {
+        <!-- KPI row -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div class="kpi-card glass-panel border-round-xl p-4 flex flex-col gap-3">
+                <div class="flex items-start justify-between gap-2">
+                    <span class="font-semibold text-muted-color text-sm">Active tests</span>
+                    <span class="kpi-icon-wrap"><i class="pi pi-file-edit text-xl"></i></span>
+                </div>
+                <div class="text-4xl font-bold text-color leading-none tabular-nums">{{ snap.kpis.activeTests }}</div>
+                <span class="text-xs text-muted-color">Published &amp; available to assign</span>
+            </div>
+            <div class="kpi-card glass-panel border-round-xl p-4 flex flex-col gap-3">
+                <div class="flex items-start justify-between gap-2">
+                    <span class="font-semibold text-muted-color text-sm">Pending assignments</span>
+                    <span class="kpi-icon-wrap"><i class="pi pi-clock text-xl"></i></span>
+                </div>
+                <div class="text-4xl font-bold text-color leading-none tabular-nums">{{ snap.kpis.pendingAssignments }}</div>
+                <span class="text-xs text-muted-color">Assessments not yet completed</span>
+            </div>
+            <div class="kpi-card glass-panel border-round-xl p-4 flex flex-col gap-3">
+                <div class="flex items-start justify-between gap-2">
+                    <span class="font-semibold text-muted-color text-sm">Completed assessments</span>
+                    <span class="kpi-icon-wrap"><i class="pi pi-check-circle text-xl"></i></span>
+                </div>
+                <div class="text-4xl font-bold text-color leading-none tabular-nums">{{ snap.kpis.completedAssessments }}</div>
+                <span class="text-xs text-muted-color">Successful completions in scope</span>
+            </div>
+            <div class="kpi-card glass-panel border-round-xl p-4 flex flex-col gap-3">
+                <div class="flex items-start justify-between gap-2">
+                    <span class="font-semibold text-muted-color text-sm">{{ fourthCardTitle(snap) }}</span>
+                    <span class="kpi-icon-wrap">
+                        <i
+                            class="text-xl"
+                            [ngClass]="snap.kpis.fourthLabel === 'active_tenants' ? 'pi pi-building' : 'pi pi-sitemap'"
+                        ></i>
+                    </span>
+                </div>
+                <div class="text-4xl font-bold text-color leading-none tabular-nums">{{ snap.kpis.fourthValue }}</div>
+                <span class="text-xs text-muted-color">
+                    {{ snap.kpis.fourthLabel === 'active_tenants' ? 'Non-deleted tenant workspaces' : 'Units in your tenant' }}
+                </span>
+            </div>
+        </div>
+
+        <!-- Quick actions -->
+        <div>
+            <div class="font-semibold text-lg mb-3">Quick actions</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                <button
+                    type="button"
+                    class="quick-tile glass-panel border-round-xl p-4 text-left cursor-pointer border-none w-full"
+                    (click)="navigate('/tests/new')"
+                >
+                    <div class="flex items-center gap-3">
+                        <span class="kpi-icon-wrap"><i class="pi pi-plus text-lg"></i></span>
+                        <div>
+                            <div class="font-semibold text-color">Create new test</div>
+                            <div class="text-xs text-muted-color mt-1">Open the test builder</div>
+                        </div>
+                    </div>
+                </button>
+                <button
+                    type="button"
+                    class="quick-tile glass-panel border-round-xl p-4 text-left cursor-pointer border-none w-full"
+                    (click)="navigate('/assignments')"
+                >
+                    <div class="flex items-center gap-3">
+                        <span class="kpi-icon-wrap"><i class="pi pi-send text-lg"></i></span>
+                        <div>
+                            <div class="font-semibold text-color">Assign to department</div>
+                            <div class="text-xs text-muted-color mt-1">Distribute assessments</div>
+                        </div>
+                    </div>
+                </button>
+                <button
+                    type="button"
+                    class="quick-tile glass-panel border-round-xl p-4 text-left cursor-pointer border-none w-full"
+                    (click)="navigate(inviteTarget())"
+                >
+                    <div class="flex items-center gap-3">
+                        <span class="kpi-icon-wrap"><i class="pi pi-user-plus text-lg"></i></span>
+                        <div>
+                            <div class="font-semibold text-color">Invite employee</div>
+                            <div class="text-xs text-muted-color mt-1">Directory &amp; onboarding</div>
+                        </div>
+                    </div>
+                </button>
+                <button
+                    type="button"
+                    class="quick-tile glass-panel border-round-xl p-4 text-left cursor-pointer border-none w-full"
+                    (click)="navigate('/assignments/results')"
+                >
+                    <div class="flex items-center gap-3">
+                        <span class="kpi-icon-wrap"><i class="pi pi-chart-bar text-lg"></i></span>
+                        <div>
+                            <div class="font-semibold text-color">View reports</div>
+                            <div class="text-xs text-muted-color mt-1">Results &amp; grading queue</div>
+                        </div>
+                    </div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div class="glass-panel border-round-xl p-4 md:p-5 flex flex-col gap-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                        <div class="font-semibold text-lg">Tests completed over time</div>
+                        <div class="text-sm text-muted-color">Daily completed assessments (last 14 days)</div>
+                    </div>
+                </div>
+                @if (store.lineChartData(); as lineData) {
+                    <div class="w-full" style="height: 18rem">
+                        <p-chart type="line" [data]="lineData" [options]="lineChartOptions" class="w-full h-full" />
+                    </div>
+                }
+            </div>
+            <div class="glass-panel border-round-xl p-4 md:p-5 flex flex-col gap-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                        <div class="font-semibold text-lg">Tests by status</div>
+                        <div class="text-sm text-muted-color">Completed vs in progress vs pending</div>
+                    </div>
+                    <p-button
+                        [label]="pieKind() === 'doughnut' ? 'Pie view' : 'Doughnut'"
+                        icon="pi pi-chart-pie"
+                        severity="secondary"
+                        [outlined]="true"
+                        size="small"
+                        (onClick)="togglePieKind()"
+                    />
+                </div>
+                @if (store.pieChartData(); as pieData) {
+                    <div class="w-full" style="height: 18rem">
+                        <p-chart [type]="pieKind()" [data]="pieData" [options]="pieChartOptions()" class="w-full h-full" />
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Activity -->
+        <div class="glass-panel border-round-xl p-4 md:p-5 timeline-wrap">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
+                <div>
+                    <div class="font-semibold text-lg">Recent activity</div>
+                    <div class="text-sm text-muted-color">Audit trail (when API is available)</div>
+                </div>
+            </div>
+            @if (store.timelineEvents().length === 0) {
+                <div class="flex flex-col items-center justify-center py-10 text-center gap-2">
+                    <i class="pi pi-history text-3xl text-muted-color"></i>
+                    <p class="m-0 text-muted-color text-sm max-w-md">
+                        No audit events yet. When <code class="text-xs">GET /api/AuditLogs</code> is live, entries will appear
+                        here with actor, time, and severity.
+                    </p>
+                </div>
+            } @else {
+                <p-timeline [value]="store.timelineEvents()" layout="vertical" align="left" styleClass="w-full mt-2">
+                    <ng-template pTemplate="marker" let-item>
+                        <p-avatar
+                            [label]="item.actorInitials"
+                            shape="circle"
+                            size="large"
+                            [style]="{ backgroundColor: item.markerColor, color: '#fff' }"
+                        />
+                    </ng-template>
+                    <ng-template pTemplate="opposite" let-item>
+                        <small class="text-muted-color whitespace-nowrap">{{ item.occurredAt | date: 'short' }}</small>
+                    </ng-template>
+                    <ng-template pTemplate="content" let-item>
+                        <div class="flex flex-col gap-2 pb-1">
+                            <p-tag
+                                [value]="item.severity"
+                                [severity]="
+                                    item.severity === 'success'
+                                        ? 'success'
+                                        : item.severity === 'danger'
+                                          ? 'danger'
+                                          : item.severity === 'warn'
+                                            ? 'warn'
+                                            : 'info'
+                                "
+                            />
+                            <p class="m-0 text-color line-height-3">{{ item.message }}</p>
+                        </div>
+                    </ng-template>
+                </p-timeline>
+            }
+        </div>
+    } @else if (store.hasLoaded()) {
+        <div class="glass-panel border-round-xl p-8 text-center flex flex-col gap-4 items-center">
+            <i class="pi pi-exclamation-circle text-4xl text-orange-500"></i>
+            <p class="m-0 text-color font-medium">Dashboard could not be loaded</p>
+            <p class="m-0 text-muted-color text-sm max-w-md">Check your connection and permissions, then try again.</p>
+            <p-button label="Retry" icon="pi pi-refresh" (onClick)="reload()" />
+        </div>
+    }
+</div>

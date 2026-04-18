@@ -1,0 +1,98 @@
+.home-dashboard {
+  --home-glass-bg: color-mix(in srgb, var(--surface-card) 78%, transparent);
+  --home-glass-border: color-mix(in srgb, var(--primary-color) 22%, var(--surface-border));
+}
+
+.glass-panel {
+  background: var(--home-glass-bg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--home-glass-border);
+  box-shadow:
+    0 1px 1px color-mix(in srgb, var(--surface-900) 4%, transparent),
+    0 12px 40px color-mix(in srgb, var(--primary-color) 6%, transparent);
+}
+
+.hero-glow {
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-glow::before {
+  content: '';
+  position: absolute;
+  inset: -40% -20% auto -20%;
+  height: 70%;
+  background: radial-gradient(
+    ellipse at 50% 0%,
+    color-mix(in srgb, var(--primary-color) 28%, transparent),
+    transparent 62%
+  );
+  pointer-events: none;
+}
+
+.hero-glow__inner {
+  position: relative;
+  z-index: 1;
+}
+
+.kpi-card {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 1px color-mix(in srgb, var(--surface-900) 5%, transparent),
+    0 16px 48px color-mix(in srgb, var(--primary-color) 10%, transparent);
+}
+
+.kpi-card::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--primary-color) 55%, transparent),
+    color-mix(in srgb, #38bdf8 70%, transparent),
+    color-mix(in srgb, var(--primary-color) 40%, transparent)
+  );
+  opacity: 0.95;
+}
+
+.kpi-icon-wrap {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--border-radius, 0.75rem);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--primary-color) 14%, var(--surface-ground));
+  color: var(--primary-color);
+}
+
+.quick-tile {
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.quick-tile:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--primary-color) 35%, var(--surface-border));
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--primary-color) 12%, transparent);
+}
+
+.timeline-wrap :deep(.p-timeline-event-opposite) {
+  flex: 0 0 5.5rem;
+}
+
+.timeline-wrap :deep(.p-timeline-event-content) {
+  padding-bottom: 1.25rem;
+}

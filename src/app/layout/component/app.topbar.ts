@@ -9,6 +9,7 @@ import { AppConfigurator } from './app.configurator';
 import { LayoutService } from '@/app/layout/service/layout.service';
 import { AuthService } from '@/app/core/api/services/auth.service';
 import { AuthIdentityService } from '@/app/core/api/services/auth-identity.service';
+import { AuthClaimsService } from '@/app/core/auth/auth-claims.service';
 
 @Component({
   selector: 'app-topbar',
@@ -119,6 +120,7 @@ export class AppTopbar {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   readonly identity = inject(AuthIdentityService);
+  private readonly claims = inject(AuthClaimsService);
 
   readonly logoutPending = signal(false);
 
@@ -138,6 +140,7 @@ export class AppTopbar {
 
   constructor() {
     this.identity.syncFromStorage();
+    this.claims.syncFromAccessToken();
   }
 
   toggleDarkMode(): void {
@@ -158,6 +161,7 @@ export class AppTopbar {
       error: () => {
         this.logoutPending.set(false);
         this.identity.clear();
+        this.claims.clear();
         void this.router.navigate(['/login'], { replaceUrl: true });
       },
     });

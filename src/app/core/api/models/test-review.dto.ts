@@ -17,6 +17,10 @@ export interface AssignmentResultViewDto {
   submittedAt?: string | null;
   answers: AssignmentAnswerViewDto[];
   results: AssignmentCalculatedResultDto[];
+  /**
+   * Raw tallies per scoring variable (e.g. `{ "e": 15, "i": 5 }`) for profile charts.
+   */
+  variableTotals?: Record<string, number> | null;
 }
 
 export interface AssignmentAnswerViewDto {
@@ -44,6 +48,8 @@ export interface AssignmentCalculatedResultDto {
   scaleName?: string;
   /** Alias for points when API sends calculatedScore. */
   calculatedScore?: number | string;
+  /** Final typed outcome when API sends string result (e.g. `"ENTJ"`). */
+  resultText?: string | null;
 }
 
 /** POST `/api/Assignments/{id}/manual-grade` */
