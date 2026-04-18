@@ -2,7 +2,10 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { MessageService } from 'primeng/api';
 import { of, type Observable } from 'rxjs';
 import { catchError, finalize, map, tap } from 'rxjs/operators';
-import { apiErrorMessage } from '@/app/core/api/utils/api-error-message';
+import {
+  apiErrorMessage,
+  isAssignmentAlreadySubmittedAccessError,
+} from '@/app/core/api/utils/api-error-message';
 import { TestExecutionService } from '@/app/core/api/services/test-execution.service';
 import type {
   AssignmentSessionDto,
@@ -44,11 +47,13 @@ export class TestExecutionStore {
       }),
       finalize(() => this.loadingToken.set(false)),
       catchError((err) => {
-        this.messages.add({
-          severity: 'error',
-          summary: 'Could not open assignment',
-          detail: apiErrorMessage(err, 'Request failed'),
-        });
+        if (!isAssignmentAlreadySubmittedAccessError(err)) {
+          this.messages.add({
+            severity: 'error',
+            summary: 'Could not open assignment',
+            detail: apiErrorMessage(err, 'Request failed'),
+          });
+        }
         throw err;
       }),
     );

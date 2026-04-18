@@ -7,9 +7,10 @@ import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TestExecutionStore } from '@/app/tests/execution/test-execution.store';
+import { isAssignmentAlreadySubmittedAccessError } from '@/app/core/api/utils/api-error-message';
 import type { SessionQuestionDto } from '@/app/core/api/models/test-execution.dto';
 
-type Step = 'loading' | 'welcome' | 'take' | 'done' | 'error';
+type Step = 'loading' | 'welcome' | 'take' | 'done' | 'error' | 'alreadyCompleted';
 
 @Component({
   selector: 'app-assessment-invite-page',
@@ -36,6 +37,18 @@ type Step = 'loading' | 'welcome' | 'take' | 'done' | 'error';
           <h2 class="m-0 text-xl font-semibold">We couldn’t open this link</h2>
           <p class="m-0 text-muted-color max-w-md">
             The link may be invalid or expired. Ask your administrator for a new invitation.
+          </p>
+        </div>
+      </p-card>
+    }
+
+    @if (step() === 'alreadyCompleted') {
+      <p-card>
+        <div class="flex flex-col gap-4 items-center text-center py-10 px-4 max-w-lg mx-auto">
+          <i class="pi pi-check-circle text-6xl text-green-500"></i>
+          <h2 class="m-0 text-2xl font-semibold text-color">Assessment Completed</h2>
+          <p class="m-0 text-muted-color line-height-3">
+            You have already completed and submitted this assessment. Thank you for your time. You can safely close this window.
           </p>
         </div>
       </p-card>
@@ -152,7 +165,13 @@ export class AssessmentInvitePage implements OnDestroy {
       .pipe(switchMap(() => this.store.loadSession$()))
       .subscribe({
         next: () => this.step.set('welcome'),
-        error: () => this.step.set('error'),
+        error: (err) => {
+          if (isAssignmentAlreadySubmittedAccessError(err)) {
+            this.step.set('alreadyCompleted');
+          } else {
+            this.step.set('error');
+          }
+        },
       });
   }
 
