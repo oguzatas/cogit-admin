@@ -1,0 +1,133 @@
+@if (review.loading() && !review.results()) {
+    <div class="flex flex-col items-center justify-center gap-4 py-20">
+        <p-progressSpinner styleClass="w-12 h-12" />
+        <span class="text-muted-color">Loading report…</span>
+    </div>
+} @else if (review.results(); as report) {
+    <div class="flex flex-col gap-4">
+        <!-- Header -->
+        <div class="card flex flex-wrap items-start justify-between gap-4">
+            <div class="flex flex-col gap-2 min-w-0">
+                <p-button
+                    label="Back to results"
+                    icon="pi pi-arrow-left"
+                    severity="secondary"
+                    [outlined]="true"
+                    [rounded]="true"
+                    (onClick)="goBack()"
+                />
+                <h1 class="m-0 text-2xl font-bold truncate">{{ report.testName }}</h1>
+                <div class="flex flex-wrap items-center gap-2">
+                    <p-tag [value]="report.status" [severity]="statusSeverity(report.status)" />
+                    @if (report.submittedAt) {
+                        <span class="text-sm text-muted-color">Submitted {{ report.submittedAt | date: 'medium' }}</span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- A — Scoring summary -->
+        <div class="card flex flex-col gap-4">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <div class="font-semibold text-lg">Scoring summary</div>
+                    <div class="text-sm text-muted-color">Calculated scores by scale or metric</div>
+                </div>
+                <p-button
+                    [label]="chartType() === 'bar' ? 'Radar view' : 'Bar chart'"
+                    icon="pi pi-chart-bar"
+                    severity="secondary"
+                    [outlined]="true"
+                    size="small"
+                    (onClick)="toggleChartKind()"
+                />
+            </div>
+
+            @if (chartData(); as cdata) {
+                <div style="height: 22rem">
+                    <p-chart
+                        [type]="chartType()"
+                        [data]="cdata"
+                        [options]="activeChartOptions()"
+                        class="w-full h-full"
+                    />
+                </div>
+            } @else {
+                <p class="m-0 text-muted-color text-sm">No calculated scores returned for this assignment.</p>
+            }
+        </div>
+
+        <!-- B — Question breakdown -->
+        <div class="card flex flex-col gap-4">
+            <div class="font-semibold text-lg">Question breakdown</div>
+            <p-table [value]="report.answers" dataKey="questionId" [tableStyle]="{ 'min-width': '44rem' }">
+                <ng-template #header>
+                    <tr>
+                        <th style="min-width: 14rem">Question</th>
+                        <th style="min-width: 14rem">Response</th>
+                        <th style="min-width: 6rem">Points</th>
+                    </tr>
+                </ng-template>
+                <ng-template #body let-a>
+                    <tr>
+                        <td class="align-top">
+                            <div class="font-medium">{{ a.questionText || 'Question' }}</div>
+                            <div class="text-xs text-muted-color mt-1">{{ a.questionType || '' }}</div>
+                        </td>
+                        <td class="align-top text-sm">{{ formatAnswer(a) }}</td>
+                        <td class="align-top font-medium">{{ pointsDisplay(a) }}</td>
+                    </tr>
+                </ng-template>
+                <ng-template #emptymessage>
+                    <tr>
+                        <td colspan="3" class="text-center text-muted-color py-8">No answers recorded.</td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </div>
+
+        <!-- C — Manual grading -->
+        @if (manualAnswers().length > 0) {
+            <div class="card flex flex-col gap-4 border-1 border-orange-200 dark:border-orange-900">
+                <div>
+                    <div class="font-semibold text-lg">Manual grading required</div>
+                    <div class="text-sm text-muted-color">
+                        Enter points for the open-ended items below, then save each row.
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-4">
+                    @for (a of manualAnswers(); track a.questionId) {
+                        <div class="flex flex-col md:flex-row md:items-end gap-3 p-4 border-round border-1 surface-border surface-ground">
+                            <div class="flex-1 flex flex-col gap-1 min-w-0">
+                                <div class="font-medium">{{ a.questionText || 'Question' }}</div>
+                                <div class="text-sm text-muted-color line-height-3">Candidate response: {{ formatAnswer(a) }}</div>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2 shrink-0">
+                                <p-inputnumber
+                                    [ngModel]="draftForQuestion(a.questionId)"
+                                    (ngModelChange)="patchDraft(qkey(a.questionId), $event)"
+                                    [min]="0"
+                                    [showButtons]="true"
+                                    inputStyleClass="w-6rem"
+                                />
+                                <p-button
+                                    label="Save"
+                                    icon="pi pi-check"
+                                    [loading]="review.saving()"
+                                    (onClick)="saveManualGrade(a)"
+                                />
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+} @else {
+    <div class="card flex flex-col items-center gap-4 py-12 text-center">
+        <i class="pi pi-inbox text-4xl text-muted-color"></i>
+        <p class="m-0 text-muted-color">Report could not be loaded.</p>
+        <p-button label="Back to results" icon="pi pi-arrow-left" (onClick)="goBack()" />
+    </div>
+}

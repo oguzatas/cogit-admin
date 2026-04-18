@@ -16,6 +16,8 @@ const PUBLIC_PATHS = new Set([
   '/api/Users/login',
   '/api/Users/refresh',
   '/api/InviteCodes/redeem',
+  /** Guest exchanges magic-link access key for a short-lived JWT (no admin session). */
+  '/api/Assignments/access',
 ]);
 
 function normalizePath(url: string, apiBase: string): string {

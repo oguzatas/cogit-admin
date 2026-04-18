@@ -4,11 +4,7 @@ import { of, type Observable } from 'rxjs';
 import { catchError, finalize, map, tap } from 'rxjs/operators';
 import { apiErrorMessage } from '@/app/core/api/utils/api-error-message';
 import { TestReviewService } from '@/app/core/api/services/test-review.service';
-import type {
-  AssignmentCalculatedResultDto,
-  AssignmentResultViewDto,
-  ManualGradeDto,
-} from '@/app/core/api/models/test-review.dto';
+import type { AssignmentResultViewDto, ManualGradeDto } from '@/app/core/api/models/test-review.dto';
 
 @Injectable({ providedIn: 'root' })
 export class TestReviewStore {
@@ -31,6 +27,7 @@ export class TestReviewStore {
 
   loadResults$(assignmentId: string): Observable<void> {
     this.setAssignmentId(assignmentId);
+    this.results.set(null);
     this.loading.set(true);
     return this.api.getResults(assignmentId).pipe(
       tap((res) => this.results.set(res)),
@@ -57,23 +54,10 @@ export class TestReviewStore {
     this.saving.set(true);
     return this.api.submitManualGrade(assignmentId, payload).pipe(
       tap(() => {
-        // Optimistic local update (if results exist)
-        this.results.update((cur) => {
-          if (!cur) {
-            return cur;
-          }
-          const nextResults: AssignmentCalculatedResultDto[] = (cur.results ?? []).map(
-            (r) =>
-              r.variableKey === payload.variableKey
-                ? { ...r, points: payload.points }
-                : r,
-          );
-          return { ...cur, results: nextResults };
-        });
         this.messages.add({
           severity: 'success',
           summary: 'Manual grade saved',
-          detail: payload.variableKey,
+          detail: payload.variableKey ?? payload.questionId ?? 'Question',
         });
       }),
       finalize(() => this.saving.set(false)),

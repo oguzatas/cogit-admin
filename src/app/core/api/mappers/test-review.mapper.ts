@@ -1,4 +1,5 @@
 import type {
+  AssignmentAnswerViewDto,
   AssignmentCalculatedResultDto,
   AssignmentResultViewDto,
   ManualGradeDto,
@@ -32,23 +33,56 @@ export function normalizeAssignmentResultView(raw: unknown): AssignmentResultVie
     testName: str(r.testName ?? r['TestName']),
     status: str(r.status ?? r['Status']),
     submittedAt: (r.submittedAt ?? r['SubmittedAt'] ?? null) as any,
-    answers: answers as any,
+    answers: answers.map((x) => normalizeAnswer(x)),
     results: results.map((x) => normalizeCalculatedResult(x)),
+  };
+}
+
+function normalizeAnswer(raw: unknown): AssignmentAnswerViewDto {
+  const r = raw as Record<string, unknown>;
+  const idsRaw = (r['selectedOptionIds'] ?? r['SelectedOptionIds']) as unknown;
+  const selectedOptionIds = Array.isArray(idsRaw)
+    ? idsRaw.map((x) => str(x))
+    : [];
+  return {
+    questionId: str(r['questionId'] ?? r['QuestionId']),
+    questionText: str(r['questionText'] ?? r['QuestionText'] ?? ''),
+    questionType: str(r['questionType'] ?? r['QuestionType'] ?? ''),
+    selectedOptionIds,
+    numberValue: (r['numberValue'] ?? r['NumberValue'] ?? null) as any,
+    textValue: (r['textValue'] ?? r['TextValue'] ?? null) as any,
+    requiresManualGrade: Boolean(r['requiresManualGrade'] ?? r['RequiresManualGrade']),
+    userAnswerLabel: (r['userAnswerLabel'] ?? r['UserAnswerLabel'] ?? null) as any,
+    pointsAwarded: (r['pointsAwarded'] ?? r['PointsAwarded'] ?? null) as any,
+    variableKey: (r['variableKey'] ?? r['VariableKey'] ?? null) as any,
   };
 }
 
 export function normalizeCalculatedResult(raw: unknown): AssignmentCalculatedResultDto {
   const r = raw as AssignmentCalculatedResultDto & Record<string, unknown>;
+  const pk = str(r['variableKey'] ?? r['VariableKey']);
+  const scaleName = str(r['scaleName'] ?? r['ScaleName'] ?? pk);
+  const calcRaw =
+    r['calculatedScore'] ?? r['CalculatedScore'] ?? r['points'] ?? r['Points'];
+  const pts = num(calcRaw);
   return {
-    variableKey: str(r.variableKey ?? r['VariableKey']),
-    points: num(r.points ?? r['Points']),
+    variableKey: pk,
+    points: pts,
+    scaleName: scaleName || pk,
+    calculatedScore: pts,
   };
 }
 
-export function normalizeManualGrade(payload: ManualGradeDto): ManualGradeDto {
-  return {
-    variableKey: str(payload.variableKey),
+export function normalizeManualGrade(payload: ManualGradeDto): Record<string, unknown> {
+  const body: Record<string, unknown> = {
     points: num(payload.points),
   };
+  if (payload.variableKey) {
+    body['variableKey'] = str(payload.variableKey);
+  }
+  if (payload.questionId) {
+    body['questionId'] = str(payload.questionId);
+  }
+  return body;
 }
 

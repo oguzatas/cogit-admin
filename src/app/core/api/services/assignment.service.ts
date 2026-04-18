@@ -1,11 +1,15 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { normalizePagedAssignmentsResponse } from '@/app/core/api/mappers/assignment.mapper';
 import { API_URL } from '../tokens/api-url.token';
 import type {
   AssignmentCreateRequestDto,
   AssignmentCreateResponseDto,
   AssignmentListItemResponseDto,
+  AssignmentsPagedQueryDto,
+  PagedAssignmentsResponseDto,
 } from '../models/assignment.dto';
 
 /** `/api/Assignments` — TenantStaff / SuperAdmin. */
@@ -20,6 +24,21 @@ export class AssignmentService {
       `${this.apiUrl}/api/Assignments`,
       { params },
     );
+  }
+
+  /**
+   * GET `/api/Assignments` — paginated listing (PageNumber, PageSize; optional tenantId).
+   */
+  listPaged(query: AssignmentsPagedQueryDto): Observable<PagedAssignmentsResponseDto> {
+    let params = new HttpParams()
+      .set('PageNumber', String(query.pageNumber))
+      .set('PageSize', String(query.pageSize));
+    if (query.tenantId) {
+      params = params.set('tenantId', query.tenantId);
+    }
+    return this.http
+      .get<unknown>(`${this.apiUrl}/api/Assignments`, { params })
+      .pipe(map((raw) => normalizePagedAssignmentsResponse(raw)));
   }
 
   create(body: AssignmentCreateRequestDto): Observable<AssignmentCreateResponseDto> {

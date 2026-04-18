@@ -28,17 +28,28 @@ export interface AssignmentAnswerViewDto {
   textValue?: string | null;
   /** Whether manual grading is required for this answer. */
   requiresManualGrade?: boolean;
+  /** Human-readable selected option text(s) when applicable. */
+  userAnswerLabel?: string | null;
+  /** Points awarded for this question (if provided by API). */
+  pointsAwarded?: number | string | null;
+  /** NCalc / scoring variable key for manual grade submission. */
+  variableKey?: string | null;
 }
 
-/** One computed output (e.g. variableKey -> points). */
+/** One computed output (e.g. scale / variable → score). */
 export interface AssignmentCalculatedResultDto {
   variableKey: string;
   points: number | string;
+  /** Display name for charts (falls back to variableKey). */
+  scaleName?: string;
+  /** Alias for points when API sends calculatedScore. */
+  calculatedScore?: number | string;
 }
 
 /** POST `/api/Assignments/{id}/manual-grade` */
 export interface ManualGradeDto {
-  variableKey: string;
+  variableKey?: string;
+  questionId?: ApiId;
   points: number | string;
 }
 
