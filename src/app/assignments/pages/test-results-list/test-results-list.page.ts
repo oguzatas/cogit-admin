@@ -80,6 +80,10 @@ export class TestResultsListPage implements OnInit {
   }
 
   viewReport(row: AssignmentResultListItemDto): void {
-    void this.router.navigate(['/assignments', row.id, 'report']);
+    const id = String(row.id ?? '').trim();
+    if (!id) {
+      return;
+    }
+    void this.router.navigate(['/assignments', id, 'report']);
   }
 }

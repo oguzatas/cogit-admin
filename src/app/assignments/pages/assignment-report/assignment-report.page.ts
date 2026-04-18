@@ -36,9 +36,17 @@ export class AssignmentReportPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
+  /** Prefer live paramMap; snapshot initialValue avoids a one-tick null before first emission (skips load). */
   readonly assignmentId = toSignal(
-    this.route.paramMap.pipe(map((p) => p.get('assignmentId'))),
-    { initialValue: null },
+    this.route.paramMap.pipe(
+      map((p) => p.get('assignmentId') ?? p.get('id')),
+    ),
+    {
+      initialValue:
+        this.route.snapshot.paramMap.get('assignmentId') ??
+        this.route.snapshot.paramMap.get('id') ??
+        null,
+    },
   );
 
   /** Points draft for manual grading keyed by questionId */
@@ -109,8 +117,14 @@ export class AssignmentReportPage {
         untracked(() => this.review.setAssignmentId(null));
         return;
       }
+      // eslint-disable-next-line no-console -- route debugging: confirm param before HTTP
+      console.log('Fetching report for ID:', id);
       untracked(() => {
-        this.review.loadResults$(id).subscribe({ error: () => {} });
+        this.review.loadResults$(id).subscribe({
+          error: () => {
+            /* toast + empty state from store */
+          },
+        });
       });
     });
 

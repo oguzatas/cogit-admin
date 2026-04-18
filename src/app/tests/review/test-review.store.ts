@@ -32,7 +32,6 @@ export class TestReviewStore {
     return this.api.getResults(assignmentId).pipe(
       tap((res) => this.results.set(res)),
       map(() => void 0),
-      finalize(() => this.loading.set(false)),
       catchError((err) => {
         this.messages.add({
           severity: 'error',
@@ -41,6 +40,7 @@ export class TestReviewStore {
         });
         throw err;
       }),
+      finalize(() => this.loading.set(false)),
     );
   }
 

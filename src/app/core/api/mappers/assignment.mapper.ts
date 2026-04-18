@@ -40,7 +40,12 @@ export function normalizeAssignmentResultListItem(
 ): AssignmentResultListItemDto {
   const r = raw as Record<string, unknown>;
   return {
-    id: str(r['id'] ?? r['Id']),
+    id: str(
+      r['id'] ??
+        r['Id'] ??
+        r['assignmentId'] ??
+        r['AssignmentId'],
+    ),
     employeeName: str(
       r['employeeName'] ?? r['EmployeeName'] ?? r['employeeFullName'] ?? r['EmployeeFullName'],
     ),
