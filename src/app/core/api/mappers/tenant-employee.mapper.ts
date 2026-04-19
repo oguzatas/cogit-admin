@@ -1,4 +1,5 @@
 import type {
+  EmployeeAssignmentDto,
   PagedTenantEmployeesResponseDto,
   TenantEmployeeListItemDto,
 } from '@/app/core/api/models/tenant-employee.dto';
@@ -36,6 +37,23 @@ export function normalizeTenantEmployeeListItem(
 }
 
 /** Normalizes paginated GET response. */
+/** GET `/api/TenantEmployees/{id}/assignments` item (OpenAPI: `TenantEmployeeAssignmentDto`). */
+export function normalizeEmployeeAssignmentDto(raw: unknown): EmployeeAssignmentDto {
+  const r = raw as Record<string, unknown>;
+  const created = str(r['created'] ?? r['Created']);
+  return {
+    id: str(r['id'] ?? r['Id']),
+    testId: str(r['testId'] ?? r['TestId']),
+    testName: str(r['testName'] ?? r['TestName']),
+    status: str(r['status'] ?? r['Status']),
+    accessKey: str(r['accessKey'] ?? r['AccessKey']),
+    assignedAt: created || null,
+    completedAt:
+      str(r['completedAt'] ?? r['CompletedAt'] ?? r['lastModified'] ?? r['LastModified'] ?? '') ||
+      null,
+  };
+}
+
 export function normalizePagedTenantEmployeesResponse(
   raw: unknown,
 ): PagedTenantEmployeesResponseDto {

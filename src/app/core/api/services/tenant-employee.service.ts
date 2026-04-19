@@ -2,7 +2,10 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { normalizePagedTenantEmployeesResponse } from '@/app/core/api/mappers/tenant-employee.mapper';
+import {
+  normalizeEmployeeAssignmentDto,
+  normalizePagedTenantEmployeesResponse,
+} from '@/app/core/api/mappers/tenant-employee.mapper';
 import { API_URL } from '../tokens/api-url.token';
 import type {
   EmployeeAssignmentDto,
@@ -49,8 +52,14 @@ export class TenantEmployeeService {
   }
 
   getAssignments(employeeId: string): Observable<EmployeeAssignmentDto[]> {
-    return this.http.get<EmployeeAssignmentDto[]>(
-      `${this.apiUrl}/api/TenantEmployees/${encodeURIComponent(employeeId)}/assignments`,
-    );
+    return this.http
+      .get<unknown>(
+        `${this.apiUrl}/api/TenantEmployees/${encodeURIComponent(employeeId)}/assignments`,
+      )
+      .pipe(
+        map((raw) =>
+          Array.isArray(raw) ? raw.map(normalizeEmployeeAssignmentDto) : [],
+        ),
+      );
   }
 }

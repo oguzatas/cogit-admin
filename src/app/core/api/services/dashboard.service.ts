@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { forkJoin, of, type Observable } from 'rxjs';
-import { catchError, map, switchMap } from 'rxjs/operators';
+import { catchError, map } from 'rxjs/operators';
 import { AssignmentService } from '@/app/core/api/services/assignment.service';
 import { AuditLogService } from '@/app/core/api/services/audit-log.service';
 import { DepartmentService } from '@/app/core/api/services/department.service';
@@ -124,25 +124,11 @@ export class DashboardService {
   private loadAllAssignments$(
     tenantId?: string,
   ): Observable<AssignmentResultListItemDto[]> {
-    const pageSize = 150;
-    const maxPages = 40;
-    const fetchPage = (
-      page: number,
-      acc: AssignmentResultListItemDto[],
-    ): Observable<AssignmentResultListItemDto[]> => {
-      return this.assignmentsApi
-        .listPaged({ pageNumber: page, pageSize, tenantId })
-        .pipe(
-          switchMap((res) => {
-            const merged = [...acc, ...res.items];
-            if (res.hasNextPage && page < maxPages) {
-              return fetchPage(page + 1, merged);
-            }
-            return of(merged);
-          }),
-        );
-    };
-    return fetchPage(1, []);
+    const tid = tenantId?.trim();
+    if (!tid) {
+      return of([]);
+    }
+    return this.assignmentsApi.mergedAssignmentRows$(tid);
   }
 
   private compose(

@@ -34,7 +34,7 @@ function unwrapArray(raw: unknown): unknown[] {
   return [];
 }
 
-/** Maps one assignment row from GET `/api/Assignments` to dashboard columns. */
+/** Maps one assignment row from a future list API payload to dashboard columns. */
 export function normalizeAssignmentResultListItem(
   raw: unknown,
 ): AssignmentResultListItemDto {
@@ -63,7 +63,7 @@ export function normalizeAssignmentResultListItem(
   };
 }
 
-/** Normalizes paginated GET `/api/Assignments` (or a bare array). */
+/** Normalizes a paginated assignment list payload (if backend adds `GET /api/Assignments` later). */
 export function normalizePagedAssignmentsResponse(
   raw: unknown,
 ): PagedAssignmentsResponseDto {

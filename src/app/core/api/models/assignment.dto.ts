@@ -11,7 +11,7 @@ export interface AssignmentCreateResponseDto {
   skipped: number;
 }
 
-/** GET /api/Assignments?tenantId= */
+/** Built client-side from `GET /api/TenantEmployees/{id}/assignments` (per OpenAPI v1). */
 export interface AssignmentListItemResponseDto {
   id: string;
   tenantId: string;
@@ -22,7 +22,7 @@ export interface AssignmentListItemResponseDto {
 }
 
 /**
- * Rows for the Test Results dashboard (from GET `/api/Assignments` list items).
+ * Rows for the Test Results dashboard (merged from TenantEmployees + assignments).
  */
 export interface AssignmentResultListItemDto {
   id: string;
@@ -34,7 +34,7 @@ export interface AssignmentResultListItemDto {
   status: string;
 }
 
-/** GET `/api/Assignments` with pagination (PageNumber / PageSize). */
+/** Client-side paging over merged assignment rows (requires `tenantId` in query). */
 export interface PagedAssignmentsResponseDto {
   items: AssignmentResultListItemDto[];
   totalRecords: number;

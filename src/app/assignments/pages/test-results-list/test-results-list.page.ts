@@ -1,7 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
+import { catchError, of } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { FluidModule } from 'primeng/fluid';
@@ -10,6 +12,7 @@ import { TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { TestResultsStore } from '@/app/assignments/test-results.store';
 import { TenantService } from '@/app/core/api/services/tenant.service';
+import { AuthClaimsService } from '@/app/core/auth/auth-claims.service';
 import type { TenantResponseDto } from '@/app/core/api/models/tenant.dto';
 import type { AssignmentResultListItemDto } from '@/app/core/api/models/assignment.dto';
 
@@ -32,20 +35,28 @@ import type { AssignmentResultListItemDto } from '@/app/core/api/models/assignme
 export class TestResultsListPage implements OnInit {
   readonly store = inject(TestResultsStore);
   private readonly tenantsApi = inject(TenantService);
+  private readonly claims = inject(AuthClaimsService);
   private readonly router = inject(Router);
 
-  tenants: TenantResponseDto[] = [];
+  /** Avoid NG0100 from assigning `[options]` after first CD (async HTTP). */
+  readonly tenants = toSignal(
+    this.tenantsApi.list().pipe(
+      catchError(() => of([] as TenantResponseDto[])),
+    ),
+    { initialValue: [] as TenantResponseDto[] },
+  );
 
   ngOnInit(): void {
-    this.tenantsApi.list().subscribe({
-      next: (rows) => (this.tenants = rows),
-      error: () => (this.tenants = []),
-    });
+    this.claims.syncFromAccessToken();
     this.store.loadPage(1);
   }
 
-  onTenantChange(tenantId: string | null): void {
-    this.store.setTenantFilter(tenantId);
+  onTenantChange(tenantId: string | number | null | undefined): void {
+    if (tenantId == null || tenantId === '') {
+      this.store.setTenantFilter(null);
+      return;
+    }
+    this.store.setTenantFilter(String(tenantId));
   }
 
   onLazyLoad(event: TableLazyLoadEvent): void {
