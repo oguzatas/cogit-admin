@@ -1,59 +1,75 @@
-# Sakai19
+# Cogit Admin
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.
+> **Status:** Archived / open-sourced reference project.
 
-## Development server
+Cogit Admin is an Angular-based admin dashboard for managing multi-tenant assessment operations.  
+It provides interfaces for authentication, tenant and assignment management, test creation/editing, test result viewing, and invite-based assessment access.
 
-To start a local development server, run:
+## What this project does
 
-```bash
-ng serve
-```
+- Admin login and protected app shell
+- Dashboard with KPI and chart views
+- Test lifecycle management (draft/publish/edit/delete)
+- Tenant and assignment management
+- Assignment results and reporting views
+- Public assessment invite route (`/assessment/invite/:accessKey`)
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+## Tech stack
 
-## Code scaffolding
+- **Framework:** Angular 21 (standalone components)
+- **Language:** TypeScript
+- **UI:** PrimeNG, PrimeIcons, PrimeUIX themes
+- **Styling:** SCSS + Tailwind CSS v4
+- **Charts:** Chart.js
+- **HTTP/Auth:** Angular HttpClient + auth interceptor/guard flow
+- **Tooling:** Angular CLI, ESLint, Prettier, Karma + Jasmine
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## Requirements
 
-```bash
-ng generate component component-name
-```
+- Node.js (LTS recommended)
+- npm
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Getting started
 
-```bash
-ng generate --help
-```
+1. Install dependencies:
 
-## Building
+   ```bash
+   npm install
+   ```
 
-To build the project run:
+2. Configure backend API URL in:
+   - `src/environments/environment.ts`
+   - `src/environments/environment.development.ts`
 
-```bash
-ng build
-```
+3. Start development server:
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+   ```bash
+   npm start
+   ```
 
-## Running unit tests
+4. Open `http://localhost:4200`.
 
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+## Available scripts
 
-```bash
-ng test
-```
+- `npm start` — run dev server
+- `npm run build` — production build
+- `npm run watch` — development build in watch mode
+- `npm test` — run unit tests
+- `npm run format` — format code with Prettier
 
-## Running end-to-end tests
+## Project structure
 
-For end-to-end (e2e) testing, run:
+- `src/app/core` — auth, API services, shared core logic
+- `src/app/dashboard` — dashboard state and presentation
+- `src/app/tests` and `src/app/test-builder` — test management and builder flows
+- `src/app/tenants` — tenant directory and details
+- `src/app/assignments` — assignments, reports, and results
+- `src/app/pages` — top-level routed pages (login, home, tests, etc.)
 
-```bash
-ng e2e
-```
+## Build output
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+Build artifacts are generated in `dist/scorion-admin/`.
 
-## Additional Resources
+## License
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+See [LICENSE.md](./LICENSE.md).
