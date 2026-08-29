@@ -2,7 +2,9 @@
 
 > **Status:** Archived / open-sourced reference project.
 
-Cogit Admin is an Angular-based admin dashboard for managing multi-tenant assessment operations.  
+Use with the [backend](https://github.com/oguzatas/cogit-backend) 
+
+Cogit  is an Angular-based admin dashboard for managing multi-tenant assessment operations.  
 It provides interfaces for authentication, tenant and assignment management, test creation/editing, test result viewing, and invite-based assessment access.
 
 ## What this project does
